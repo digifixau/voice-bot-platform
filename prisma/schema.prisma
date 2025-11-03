@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("RAW_DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ORG_USER
+}
+
+enum CallStatus {
+  INITIATED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  n8nWebhookUrl String? // Webhook URL for initiating calls for this org
+  retellApiKey  String? // Organization-specific Retell API key if needed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  calls       Call[]
+  contacts    Contact[]
+  
+  @@map("organizations")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  password      String   // Hashed password
+  role          UserRole @default(ORG_USER)
+  organizationId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  name           String
+  phoneNumber    String
+  email          String?
+  notes          String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calls          Call[]
+  
+  @@index([organizationId])
+  @@index([phoneNumber])
+  @@map("contacts")
+}
+
+model Call {
+  id              String     @id @default(cuid())
+  contactId       String
+  organizationId  String
+  retellCallId    String?    @unique // ID from Retell AI
+  status          CallStatus @default(INITIATED)
+  duration        Int?       // Duration in seconds
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  contact         Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  summary         CallSummary?
+  recording       CallRecording?
+  
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([retellCallId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("calls")
+}
+
+model CallSummary {
+  id              String   @id @default(cuid())
+  callId          String   @unique
+  transcript      String?  @db.Text
+  summary         String?  @db.Text
+  sentiment       String?  // positive, negative, neutral
+  keyPoints       String[] // Array of key discussion points
+  actionItems     String[] // Array of action items
+  metadata        Json?    // Additional metadata from Retell AI
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  call            Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  
+  @@index([callId])
+  @@map("call_summaries")
+}
+
+model CallRecording {
+  id              String   @id @default(cuid())
+  callId          String   @unique
+  recordingUrl    String   // URL from Retell AI
+  cloudflareR2Url String?  // URL after uploading to Cloudflare R2
+  duration        Int?     // Duration in seconds
+  fileSize        Int?     // File size in bytes
+  format          String?  // Audio format (mp3, wav, etc.)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  call            Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  
+  @@index([callId])
+  @@map("call_recordings")
+}
