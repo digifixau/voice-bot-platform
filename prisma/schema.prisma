@@ -36,6 +36,7 @@ model Organization {
   users       User[]
   calls       Call[]
   contacts    Contact[]
+  agents      Agent[] // Retell AI agents assigned to this org
   
   @@map("organizations")
 }
@@ -75,25 +76,46 @@ model Contact {
   @@map("contacts")
 }
 
+model Agent {
+  id             String   @id @default(cuid())
+  retellAgentId  String   @unique // agent_id from Retell AI
+  name           String
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calls          Call[]
+  
+  @@index([organizationId])
+  @@index([retellAgentId])
+  @@map("agents")
+}
+
 model Call {
   id              String     @id @default(cuid())
-  contactId       String
+  contactId       String?    // Optional - can be null for webhook calls
   organizationId  String
+  agentId         String?    // Agent that handled the call
   retellCallId    String?    @unique // ID from Retell AI
+  callType        String?    // web_call, phone_call, etc.
   status          CallStatus @default(INITIATED)
   duration        Int?       // Duration in seconds
   startedAt       DateTime?
   endedAt         DateTime?
+  disconnectionReason String? // user_hangup, agent_hangup, etc.
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   
-  contact         Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact         Contact?      @relation(fields: [contactId], references: [id], onDelete: Cascade)
   organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent           Agent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
   summary         CallSummary?
   recording       CallRecording?
   
   @@index([organizationId])
   @@index([contactId])
+  @@index([agentId])
   @@index([retellCallId])
   @@index([status])
   @@index([createdAt])

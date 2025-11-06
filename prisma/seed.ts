@@ -71,10 +71,22 @@ async function main() {
 
   console.log('Created sample contacts:', contact1.name, contact2.name)
 
+  // Create sample agent
+  const agent = await prisma.agent.create({
+    data: {
+      retellAgentId: 'agent_f9b744d05b598a9ab2b1df2a79', // Example from your webhook
+      name: 'Demo Agent',
+      organizationId: org.id,
+    },
+  })
+
+  console.log('Created sample agent:', agent.name)
+
   console.log('Seeding completed!')
   console.log('\nLogin credentials:')
   console.log('Admin - Email: admin@voicebot.com, Password: admin123')
   console.log('Org User - Email: user@demo.com, Password: user123')
+  console.log('\nSample Agent ID:', agent.retellAgentId)
 }
 
 main()
