@@ -117,6 +117,13 @@ export async function POST(
       where: { id: call.id },
       include: {
         contact: true,
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            retellAgentId: true,
+          }
+        },
         summary: true,
         recording: true,
       }

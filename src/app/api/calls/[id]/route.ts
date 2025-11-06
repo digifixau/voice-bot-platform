@@ -24,6 +24,13 @@ export async function GET(
       },
       include: {
         contact: true,
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            retellAgentId: true,
+          }
+        },
         summary: true,
         recording: true,
       }

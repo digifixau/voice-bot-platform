@@ -42,6 +42,13 @@ export async function GET(req: NextRequest) {
               phoneNumber: true,
             }
           },
+          agent: {
+            select: {
+              id: true,
+              name: true,
+              retellAgentId: true,
+            }
+          },
           summary: true,
           recording: {
             select: {
