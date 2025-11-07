@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -50,6 +50,7 @@ export default function CallsPage() {
   const [calls, setCalls] = useState<Call[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -59,11 +60,7 @@ export default function CallsPage() {
     }
   }, [status, router])
 
-  useEffect(() => {
-    fetchCalls()
-  }, [filter, page])
-
-  const fetchCalls = async () => {
+  const fetchCalls = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -75,18 +72,57 @@ export default function CallsPage() {
         params.append('status', filter)
       }
 
+      // Add date filtering
+      if (dateFilter !== 'all') {
+        const now = new Date()
+        let startDate: Date | null = null
+
+        switch (dateFilter) {
+          case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            break
+          case 'yesterday':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+            const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            params.append('startDate', startDate.toISOString())
+            params.append('endDate', endDate.toISOString())
+            break
+          case 'week':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            break
+          case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+            break
+        }
+
+        if (startDate && dateFilter !== 'yesterday') {
+          params.append('startDate', startDate.toISOString())
+        }
+      }
+
+      console.log('Fetching calls with params:', params.toString())
       const response = await fetch(`/api/calls?${params}`)
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched calls:', data.calls)
         setCalls(data.calls)
         setTotalPages(data.pagination.pages)
+      } else {
+        console.error('Failed to fetch calls:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error fetching calls:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter, dateFilter, page])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      console.log('useEffect triggered - fetchCalls called')
+      fetchCalls()
+    }
+  }, [status, fetchCalls])
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return 'N/A'
@@ -223,24 +259,86 @@ export default function CallsPage() {
           <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div className="px-4 py-8 sm:px-0">
               {/* Filters */}
-              <div className="mb-6 flex gap-2 flex-wrap">
-                {['all', 'COMPLETED', 'IN_PROGRESS', 'FAILED', 'INITIATED'].map((status) => (
+              <div className="mb-6 space-y-4">
+                {/* Status Filters */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Call Status</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['all', 'COMPLETED', 'FAILED'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setFilter(status)
+                          setPage(1)
+                        }}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          filter === status
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        {status === 'all' ? 'All Calls' : status.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Filters */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { value: 'all', label: 'All Time' },
+                      { value: 'today', label: 'Today' },
+                      { value: 'yesterday', label: 'Yesterday' },
+                      { value: 'week', label: 'Last 7 Days' },
+                      { value: 'month', label: 'This Month' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setDateFilter(option.value)
+                          setPage(1)
+                        }}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          dateFilter === option.value
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Summary */}
+              {(filter !== 'all' || dateFilter !== 'all') && (
+                <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium">Active filters:</span>
+                  {filter !== 'all' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      Status: {filter}
+                    </span>
+                  )}
+                  {dateFilter !== 'all' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      Date: {dateFilter === 'today' ? 'Today' : dateFilter === 'yesterday' ? 'Yesterday' : dateFilter === 'week' ? 'Last 7 Days' : 'This Month'}
+                    </span>
+                  )}
                   <button
-                    key={status}
                     onClick={() => {
-                      setFilter(status)
+                      setFilter('all')
+                      setDateFilter('all')
                       setPage(1)
                     }}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      filter === status
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
+                    className="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
                   >
-                    {status === 'all' ? 'All Calls' : status.replace('_', ' ')}
+                    Clear all
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
 
               {/* Calls Table */}
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">

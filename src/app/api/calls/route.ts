@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const contactId = searchParams.get('contactId')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = (page - 1) * limit
@@ -29,6 +31,17 @@ export async function GET(req: NextRequest) {
 
     if (contactId) {
       where.contactId = contactId
+    }
+
+    // Add date filtering
+    if (startDate || endDate) {
+      where.createdAt = {}
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate)
+      }
+      if (endDate) {
+        where.createdAt.lt = new Date(endDate)
+      }
     }
 
     const [calls, total] = await Promise.all([
