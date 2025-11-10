@@ -37,6 +37,24 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [activeTab, setActiveTab] = useState<'organizations' | 'users'>('organizations')
   const [loading, setLoading] = useState(true)
+  const [showOrgModal, setShowOrgModal] = useState(false)
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  
+  // Organization form state
+  const [orgForm, setOrgForm] = useState({
+    name: '',
+    description: ''
+  })
+  
+  // User form state
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'ORG_USER',
+    organizationId: ''
+  })
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -68,6 +86,58 @@ export default function AdminPage() {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCreateOrganization = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/admin/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orgForm)
+      })
+      
+      if (response.ok) {
+        setShowOrgModal(false)
+        setOrgForm({ name: '', description: '' })
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to create organization'}`)
+      }
+    } catch (error) {
+      console.error('Error creating organization:', error)
+      alert('Failed to create organization')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userForm)
+      })
+      
+      if (response.ok) {
+        setShowUserModal(false)
+        setUserForm({ name: '', email: '', password: '', role: 'ORG_USER', organizationId: '' })
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to create user'}`)
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert('Failed to create user')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -151,7 +221,10 @@ export default function AdminPage() {
                       <h3 className="text-lg leading-6 font-medium text-gray-900">
                         Organizations
                       </h3>
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                      <button 
+                        onClick={() => setShowOrgModal(true)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
                         Add Organization
                       </button>
                     </div>
@@ -205,7 +278,10 @@ export default function AdminPage() {
                       <h3 className="text-lg leading-6 font-medium text-gray-900">
                         Users
                       </h3>
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                      <button 
+                        onClick={() => setShowUserModal(true)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
                         Add User
                       </button>
                     </div>
@@ -254,6 +330,172 @@ export default function AdminPage() {
           </div>
         </main>
       </div>
+
+      {/* Add Organization Modal */}
+      {showOrgModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                Add New Organization
+              </h3>
+              <form onSubmit={handleCreateOrganization}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Organization Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={orgForm.name}
+                    onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter organization name"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={orgForm.description}
+                    onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter description (optional)"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOrgModal(false)
+                      setOrgForm({ name: '', description: '' })
+                    }}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Creating...' : 'Create Organization'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                Add New User
+              </h3>
+              <form onSubmit={handleCreateUser}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter password"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role *
+                  </label>
+                  <select
+                    required
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="ORG_USER">Organization User</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+                {userForm.role === 'ORG_USER' && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Organization *
+                    </label>
+                    <select
+                      required
+                      value={userForm.organizationId}
+                      onChange={(e) => setUserForm({ ...userForm, organizationId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="">Select an organization</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserModal(false)
+                      setUserForm({ name: '', email: '', password: '', role: 'ORG_USER', organizationId: '' })
+                    }}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
