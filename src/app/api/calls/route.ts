@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
+import { ca } from 'zod/locales'
 
 // GET /api/calls - List all calls for the user's organization
 export async function GET(req: NextRequest) {
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
     const where: any = {
       organizationId: session.user.organizationId
     }
+
+    console.log(where)
 
     if (status) {
       where.status = status
@@ -81,6 +84,8 @@ export async function GET(req: NextRequest) {
       }),
       prisma.call.count({ where })
     ])
+
+    console.log(calls)
 
     return NextResponse.json({ 
       calls,
