@@ -30,15 +30,33 @@ interface User {
   createdAt: string
 }
 
+interface Agent {
+  id: string
+  retellAgentId: string
+  name: string
+  organizationId: string
+  organization: {
+    id: string
+    name: string
+  }
+  _count?: {
+    calls: number
+  }
+  createdAt: string
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [activeTab, setActiveTab] = useState<'organizations' | 'users'>('organizations')
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [activeTab, setActiveTab] = useState<'organizations' | 'users' | 'agents'>('organizations')
   const [loading, setLoading] = useState(true)
   const [showOrgModal, setShowOrgModal] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
+  const [showAgentModal, setShowAgentModal] = useState(false)
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [submitting, setSubmitting] = useState(false)
   
   // Organization form state
@@ -53,6 +71,13 @@ export default function AdminPage() {
     email: '',
     password: '',
     role: 'ORG_USER',
+    organizationId: ''
+  })
+
+  // Agent form state
+  const [agentForm, setAgentForm] = useState({
+    retellAgentId: '',
+    name: '',
     organizationId: ''
   })
 
@@ -73,14 +98,20 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      if (activeTab === 'organizations') {
-        const res = await fetch('/api/admin/organizations')
-        const data = await res.json()
-        setOrganizations(data.organizations || [])
-      } else {
+      // Always fetch organizations for dropdown menus
+      const orgRes = await fetch('/api/admin/organizations')
+      const orgData = await orgRes.json()
+      setOrganizations(orgData.organizations || [])
+
+      // Fetch additional data based on active tab
+      if (activeTab === 'users') {
         const res = await fetch('/api/admin/users')
         const data = await res.json()
         setUsers(data.users || [])
+      } else if (activeTab === 'agents') {
+        const res = await fetch('/api/agents')
+        const data = await res.json()
+        setAgents(data.agents || [])
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -141,10 +172,106 @@ export default function AdminPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  const handleCreateAgent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agentForm)
+      })
+      
+      if (response.ok) {
+        setShowAgentModal(false)
+        setEditingAgent(null)
+        setAgentForm({ retellAgentId: '', name: '', organizationId: '' })
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to create agent'}`)
+      }
+    } catch (error) {
+      console.error('Error creating agent:', error)
+      alert('Failed to create agent')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditAgent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAgent) return
+    
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/agents/${editingAgent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agentForm)
+      })
+      
+      if (response.ok) {
+        setShowAgentModal(false)
+        setEditingAgent(null)
+        setAgentForm({ retellAgentId: '', name: '', organizationId: '' })
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to update agent'}`)
+      }
+    } catch (error) {
+      console.error('Error updating agent:', error)
+      alert('Failed to update agent')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteAgent = async (agentId: string) => {
+    if (!confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/agents/${agentId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to delete agent'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting agent:', error)
+      alert('Failed to delete agent')
+    }
+  }
+
+  const openAgentModal = (agent?: Agent) => {
+    if (agent) {
+      setEditingAgent(agent)
+      setAgentForm({
+        retellAgentId: agent.retellAgentId,
+        name: agent.name,
+        organizationId: agent.organizationId
+      })
+    } else {
+      setEditingAgent(null)
+      setAgentForm({ retellAgentId: '', name: '', organizationId: '' })
+    }
+    setShowAgentModal(true)
+  }
+
+  if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+          <div className="text-gray-600">Loading...</div>
+        </div>
       </div>
     )
   }
@@ -189,7 +316,14 @@ export default function AdminPage() {
         <main>
           <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div className="px-4 py-8 sm:px-0">
-              <div className="border-b border-gray-200">
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3"></div>
+                  <span className="text-gray-600">Loading data...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
                   <button
                     onClick={() => setActiveTab('organizations')}
@@ -210,6 +344,16 @@ export default function AdminPage() {
                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                   >
                     Users
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('agents')}
+                    className={`${
+                      activeTab === 'agents'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                  >
+                    Agents
                   </button>
                 </nav>
               </div>
@@ -325,7 +469,72 @@ export default function AdminPage() {
                     </ul>
                   </div>
                 )}
+
+                {activeTab === 'agents' && (
+                  <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                        Agents
+                      </h3>
+                      <button 
+                        onClick={() => openAgentModal()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Add Agent
+                      </button>
+                    </div>
+                    <ul className="divide-y divide-gray-200">
+                      {agents.map((agent) => (
+                        <li key={agent.id}>
+                          <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-indigo-600 truncate">
+                                  {agent.name}
+                                </p>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Retell Agent ID: {agent.retellAgentId}
+                                </p>
+                                <div className="mt-2 flex items-center text-sm text-gray-500">
+                                  <span className="text-gray-500 mr-4">
+                                    Organization: {agent.organization.name}
+                                  </span>
+                                  {agent._count?.calls !== undefined && (
+                                    <span className="text-gray-500">
+                                      Calls: {agent._count.calls}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="ml-4 flex gap-2">
+                                <button 
+                                  onClick={() => openAgentModal(agent)}
+                                  className="text-sm text-indigo-600 hover:text-indigo-900"
+                                >
+                                  Edit
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteAgent(agent.id)}
+                                  className="text-sm text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                      {agents.length === 0 && (
+                        <li className="px-4 py-8 text-center text-gray-500">
+                          No agents found
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
+                </>
+              )}
             </div>
           </div>
         </main>
@@ -489,6 +698,91 @@ export default function AdminPage() {
                     className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Agent Modal */}
+      {showAgentModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                {editingAgent ? 'Edit Agent' : 'Add New Agent'}
+              </h3>
+              <form onSubmit={editingAgent ? handleEditAgent : handleCreateAgent}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Retell Agent ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={agentForm.retellAgentId}
+                    onChange={(e) => setAgentForm({ ...agentForm, retellAgentId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter Retell AI agent ID"
+                    disabled={!!editingAgent}
+                  />
+                  {editingAgent && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Agent ID cannot be changed after creation
+                    </p>
+                  )}
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agent Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={agentForm.name}
+                    onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter agent name"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Organization *
+                  </label>
+                  <select
+                    required
+                    value={agentForm.organizationId}
+                    onChange={(e) => setAgentForm({ ...agentForm, organizationId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Select an organization</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAgentModal(false)
+                      setEditingAgent(null)
+                      setAgentForm({ retellAgentId: '', name: '', organizationId: '' })
+                    }}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? (editingAgent ? 'Updating...' : 'Creating...') : (editingAgent ? 'Update Agent' : 'Create Agent')}
                   </button>
                 </div>
               </form>

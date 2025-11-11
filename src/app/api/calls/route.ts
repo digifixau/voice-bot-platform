@@ -9,8 +9,23 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || !session.user.organizationId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    console.log('Session data:', JSON.stringify(session, null, 2))
+    console.log('Organization ID:', session?.user?.organizationId)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    if (!session.user.organizationId) {
+      console.error('User has no organization ID:', session.user)
+      return NextResponse.json({ 
+        error: 'User is not associated with any organization',
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          role: session.user.role
+        }
+      }, { status: 403 })
     }
 
     const { searchParams } = new URL(req.url)

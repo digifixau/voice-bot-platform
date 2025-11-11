@@ -170,10 +170,13 @@ export default function CallsPage() {
     )
   }
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+          <div className="text-gray-600">Loading...</div>
+        </div>
       </div>
     )
   }
@@ -342,7 +345,12 @@ export default function CallsPage() {
 
               {/* Calls Table */}
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                {calls.length === 0 ? (
+                {loading ? (
+                  <div className="text-center py-12 px-4">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+                    <p className="text-sm text-gray-500">Loading calls...</p>
+                  </div>
+                ) : calls.length === 0 ? (
                   <div className="text-center py-12 px-4">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
