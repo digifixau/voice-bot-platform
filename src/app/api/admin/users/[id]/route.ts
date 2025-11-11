@@ -129,6 +129,11 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Prevent admins from deleting themselves
+    if (session.user.id === id) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+    }
+
     await prisma.user.delete({
       where: { id }
     })

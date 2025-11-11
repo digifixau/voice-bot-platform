@@ -250,6 +250,59 @@ export default function AdminPage() {
     }
   }
 
+  const handleResetPassword = async (userId: string, userEmail: string) => {
+    const newPassword = prompt(`Enter new password for ${userEmail}:`)
+    if (!newPassword) {
+      return
+    }
+
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters long')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword })
+      })
+
+      if (response.ok) {
+        alert('Password reset successfully')
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to reset password'}`)
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error)
+      alert('Failed to reset password')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        fetchData()
+        alert('User deleted successfully')
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to delete user'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Failed to delete user')
+    }
+  }
+
   const openAgentModal = (agent?: Agent) => {
     if (agent) {
       setEditingAgent(agent)
@@ -452,10 +505,23 @@ export default function AdminPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="ml-4">
-                                <button className="text-sm text-indigo-600 hover:text-indigo-900">
-                                  Edit
+                              <div className="ml-4 flex gap-2">
+                                <button 
+                                  onClick={() => handleResetPassword(user.id, user.email)}
+                                  className="text-sm text-yellow-600 hover:text-yellow-900"
+                                  title="Reset user password"
+                                >
+                                  Reset Password
                                 </button>
+                                {user.id !== session?.user.id && user.role !== 'ADMIN' && (
+                                  <button 
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="text-sm text-red-600 hover:text-red-900"
+                                    title="Delete user"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
