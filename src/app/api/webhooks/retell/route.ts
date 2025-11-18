@@ -18,6 +18,9 @@ const retellWebhookSchema = z.object({
     transcript_object: z.array(z.any()).optional(),
     recording_url: z.string().optional(),
     disconnection_reason: z.string().optional(),
+    from_number: z.string().optional(),
+    to_number: z.string().optional(),
+    direction: z.string().optional(), // 'inbound' or 'outbound'
     call_analysis: z.object({
       call_summary: z.string().optional(),
       in_voicemail: z.boolean().optional(),
@@ -38,13 +41,77 @@ export async function POST(req: NextRequest) {
     // Validate webhook payload
     const validatedData = retellWebhookSchema.parse(body)
 
-    // Only process call_analyzed events
+    const { call } = validatedData
+
+    // Handle call_started event - create initial call record
+    if (validatedData.event === 'call_started') {
+      console.log('Processing call_started event')
+
+      // Find the agent and organization
+      const agent = await prisma.agent.findUnique({
+        where: { retellAgentId: call.agent_id },
+        include: { organization: true }
+      })
+
+      if (!agent) {
+        console.error('Agent not found:', call.agent_id)
+        return NextResponse.json(
+          { error: 'Agent not found. Please register this agent first.' },
+          { status: 404 }
+        )
+      }
+
+      // Determine client's phone number based on direction
+      const direction = call.direction?.toLowerCase()
+      const clientPhoneNumber = direction === 'inbound' ? call.from_number : call.to_number
+
+      // Try to find existing contact by phone number
+      let contactId: string | null = null
+      if (clientPhoneNumber) {
+        const contact = await prisma.contact.findFirst({
+          where: {
+            phoneNumber: clientPhoneNumber,
+            organizationId: agent.organizationId
+          }
+        })
+        contactId = contact?.id || null
+      }
+
+      // Create initial call record
+      await prisma.call.upsert({
+        where: { retellCallId: call.call_id },
+        create: {
+          retellCallId: call.call_id,
+          organizationId: agent.organizationId,
+          agentId: agent.id,
+          contactId: contactId,
+          callType: call.call_type,
+          status: call.call_status === 'ongoing' ? 'IN_PROGRESS' : 'INITIATED',
+          startedAt: call.start_timestamp ? new Date(call.start_timestamp) : null,
+          fromNumber: call.from_number,
+          toNumber: call.to_number,
+          direction: direction,
+          clientPhoneNumber: clientPhoneNumber,
+        },
+        update: {
+          status: call.call_status === 'ongoing' ? 'IN_PROGRESS' : 'INITIATED',
+          startedAt: call.start_timestamp ? new Date(call.start_timestamp) : null,
+          fromNumber: call.from_number,
+          toNumber: call.to_number,
+          direction: direction,
+          clientPhoneNumber: clientPhoneNumber,
+        },
+      })
+
+      console.log('Call started record created/updated')
+      return NextResponse.json({ success: true, message: 'Call started processed' })
+    }
+
+    // Only process call_analyzed events for full details
     if (validatedData.event !== 'call_analyzed') {
       console.log('Ignoring event:', validatedData.event)
       return NextResponse.json({ message: 'Event ignored' })
     }
-
-    const { call } = validatedData
 
     // Find the agent and organization
     const agent = await prisma.agent.findUnique({
@@ -74,6 +141,24 @@ export async function POST(req: NextRequest) {
       callStatus = 'IN_PROGRESS'
     }
 
+    // Determine client's phone number based on direction
+    // If inbound: client is from_number (caller)
+    // If outbound: client is to_number (recipient)
+    const direction = call.direction?.toLowerCase()
+    const clientPhoneNumber = direction === 'inbound' ? call.from_number : call.to_number
+
+    // Try to find existing contact by phone number
+    let contactId: string | null = null
+    if (clientPhoneNumber) {
+      const contact = await prisma.contact.findFirst({
+        where: {
+          phoneNumber: clientPhoneNumber,
+          organizationId: agent.organizationId
+        }
+      })
+      contactId = contact?.id || null
+    }
+
     // Create or update the call record
     const callRecord = await prisma.call.upsert({
       where: { retellCallId: call.call_id },
@@ -81,19 +166,29 @@ export async function POST(req: NextRequest) {
         retellCallId: call.call_id,
         organizationId: agent.organizationId,
         agentId: agent.id,
+        contactId: contactId,
         callType: call.call_type,
         status: callStatus,
         duration: durationSeconds,
         startedAt: call.start_timestamp ? new Date(call.start_timestamp) : null,
         endedAt: call.end_timestamp ? new Date(call.end_timestamp) : null,
         disconnectionReason: call.disconnection_reason,
+        fromNumber: call.from_number,
+        toNumber: call.to_number,
+        direction: direction,
+        clientPhoneNumber: clientPhoneNumber,
       },
       update: {
+        contactId: contactId,
         status: callStatus,
         duration: durationSeconds,
         startedAt: call.start_timestamp ? new Date(call.start_timestamp) : null,
         endedAt: call.end_timestamp ? new Date(call.end_timestamp) : null,
         disconnectionReason: call.disconnection_reason,
+        fromNumber: call.from_number,
+        toNumber: call.to_number,
+        direction: direction,
+        clientPhoneNumber: clientPhoneNumber,
       },
     })
 

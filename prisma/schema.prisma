@@ -63,7 +63,10 @@ model Contact {
   name           String
   phoneNumber    String
   email          String?
+  businessName   String?
+  businessWebsite String?
   notes          String?
+  customFields   Json?    // Flexible key-value pairs for additional contact information
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -104,6 +107,10 @@ model Call {
   startedAt       DateTime?
   endedAt         DateTime?
   disconnectionReason String? // user_hangup, agent_hangup, etc.
+  fromNumber      String?    // Phone number that initiated the call
+  toNumber        String?    // Phone number that received the call
+  direction       String?    // inbound or outbound
+  clientPhoneNumber String?  // The client's phone number (from_number if inbound, to_number if outbound)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   

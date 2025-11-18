@@ -51,6 +51,10 @@ interface Call {
   agent: Agent | null
   summary: CallSummary | null
   recording: CallRecording | null
+  fromNumber: string | null
+  toNumber: string | null
+  direction: string | null
+  clientPhoneNumber: string | null
 }
 
 export default function CallDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -315,14 +319,49 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                 </div>
                 
                 <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="text-sm font-medium text-gray-500 mb-1">Call Type</div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {call.callType === 'inbound' ? '📞 Inbound' : 
-                     call.callType === 'outbound' ? '📤 Outbound' : 
-                     call.contact ? '📤 Outbound' : 'N/A'}
+                  <div className="text-sm font-medium text-gray-500 mb-1">Direction</div>
+                  <div>
+                    {call.direction ? (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        call.direction === 'inbound' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {call.direction === 'inbound' ? '← Inbound' : '→ Outbound'}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {/* Phone Numbers Info */}
+              {(call.clientPhoneNumber || call.fromNumber || call.toNumber) && (
+                <div className="bg-white p-6 rounded-lg shadow mb-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Phone Numbers</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {call.clientPhoneNumber && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-1">Client Phone</div>
+                        <div className="text-lg font-semibold text-gray-900">{call.clientPhoneNumber}</div>
+                      </div>
+                    )}
+                    {call.fromNumber && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-1">From Number</div>
+                        <div className="text-lg text-gray-900">{call.fromNumber}</div>
+                      </div>
+                    )}
+                    {call.toNumber && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-1">To Number</div>
+                        <div className="text-lg text-gray-900">{call.toNumber}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Timeline */}
               <div className="bg-white p-6 rounded-lg shadow mb-8">

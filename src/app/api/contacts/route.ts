@@ -6,9 +6,12 @@ import { z } from 'zod'
 
 const createContactSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  phoneNumber: z.string().min(10, 'Valid phone number is required'),
-  email: z.string().email().optional(),
+  phoneNumber: z.string().min(1, 'Phone number is required'),
+  email: z.string().email().optional().or(z.literal('')),
   notes: z.string().optional(),
+  businessName: z.string().optional(),
+  businessWebsite: z.string().optional().or(z.literal('')),
+  customFields: z.record(z.string(), z.string()).optional(),
 })
 
 // GET /api/contacts - List all contacts for the user's organization
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        name: 'asc'
       }
     })
 
@@ -53,17 +56,45 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validatedData = createContactSchema.parse(body)
 
+    // Check if contact with same phone number already exists in this organization
+    const existingContact = await prisma.contact.findFirst({
+      where: {
+        phoneNumber: validatedData.phoneNumber,
+        organizationId: session.user.organizationId
+      }
+    })
+
+    if (existingContact) {
+      return NextResponse.json(
+        { error: 'A contact with this phone number already exists in your organization' },
+        { status: 400 }
+      )
+    }
+
     const contact = await prisma.contact.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        phoneNumber: validatedData.phoneNumber,
+        email: validatedData.email || null,
+        notes: validatedData.notes || null,
+        businessName: validatedData.businessName || null,
+        businessWebsite: validatedData.businessWebsite || null,
+        customFields: validatedData.customFields || undefined,
         organizationId: session.user.organizationId
+      },
+      include: {
+        _count: {
+          select: {
+            calls: true
+          }
+        }
       }
     })
 
     return NextResponse.json({ contact }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 })
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 })
     }
     console.error('Error creating contact:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
