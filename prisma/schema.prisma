@@ -37,6 +37,7 @@ model Organization {
   calls       Call[]
   contacts    Contact[]
   agents      Agent[] // Retell AI agents assigned to this org
+  scheduledCalls ScheduledCall[]
   
   @@map("organizations")
 }
@@ -73,6 +74,7 @@ model Contact {
   
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   calls          Call[]
+  scheduledCalls ScheduledCall[]
   
   @@index([organizationId])
   @@index([phoneNumber])
@@ -162,4 +164,40 @@ model CallRecording {
   
   @@index([callId])
   @@map("call_recordings")
+}
+
+enum ScheduledCallStatus {
+  PENDING      // Waiting to be executed
+  IN_PROGRESS  // Currently being processed
+  COMPLETED    // Successfully completed
+  FAILED       // Failed to execute
+  CANCELLED    // Manually cancelled
+}
+
+model ScheduledCall {
+  id             String              @id @default(cuid())
+  contactId      String
+  organizationId String
+  fromNumber     String              // Number to call from
+  agentId        String              // Agent ID to use for the call
+  scheduledTime  DateTime            // When to place the call
+  status         ScheduledCallStatus @default(PENDING)
+  retellCallId   String?             // ID from Retell once call is placed
+  callId         String?             // Reference to Call model once created
+  dynamicVariables Json?             // Custom variables for this call
+  errorMessage   String?             // Error message if failed
+  attempts       Int                 @default(0) // Number of attempts made
+  maxAttempts    Int                 @default(3) // Maximum retry attempts
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  executedAt     DateTime?           // When the call was actually placed
+  
+  contact        Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([scheduledTime])
+  @@index([status])
+  @@map("scheduled_calls")
 }

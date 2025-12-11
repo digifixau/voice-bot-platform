@@ -29,7 +29,23 @@ export default function ContactsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Call functionality state
+  const [showCallModal, setShowCallModal] = useState(false)
+  const [callingContact, setCallingContact] = useState<Contact | null>(null)
+  const [calling, setCalling] = useState(false)
+  const [callConfig, setCallConfig] = useState({
+    fromNumber: '+61480038722',
+    agentId: 'agent_2eed1ddae212cb8f2dd1c481de'
+  })
+  
+  // Bulk scheduling state
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const [scheduleTime, setScheduleTime] = useState('')
 
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -156,6 +172,141 @@ export default function ContactsPage() {
     }
   }
 
+  const handleCallNow = async () => {
+    if (!callingContact) return
+
+    setCalling(true)
+    try {
+      const response = await fetch('/api/retell/create-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contactId: callingContact.id,
+          fromNumber: callConfig.fromNumber,
+          agentId: callConfig.agentId
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Call initiated successfully! Call ID: ${data.callId}`)
+        setShowCallModal(false)
+        setCallingContact(null)
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to initiate call'}`)
+      }
+    } catch (error) {
+      console.error('Error initiating call:', error)
+      alert('Failed to initiate call')
+    } finally {
+      setCalling(false)
+    }
+  }
+
+  const handleScheduleCalls = async () => {
+    if (selectedContacts.size === 0) {
+      alert('Please select at least one contact')
+      return
+    }
+
+    if (!scheduleTime) {
+      alert('Please select a scheduled time')
+      return
+    }
+
+    setScheduling(true)
+    try {
+      const response = await fetch('/api/scheduled-calls', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contactIds: Array.from(selectedContacts),
+          scheduledTime: new Date(scheduleTime).toISOString(),
+          fromNumber: callConfig.fromNumber,
+          agentId: callConfig.agentId
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(data.message)
+        setShowScheduleModal(false)
+        setSelectedContacts(new Set())
+        setScheduleTime('')
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to schedule calls'}`)
+      }
+    } catch (error) {
+      console.error('Error scheduling calls:', error)
+      alert('Failed to schedule calls')
+    } finally {
+      setScheduling(false)
+    }
+  }
+
+  const toggleContactSelection = (contactId: string) => {
+    const newSelection = new Set(selectedContacts)
+    if (newSelection.has(contactId)) {
+      newSelection.delete(contactId)
+    } else {
+      newSelection.add(contactId)
+    }
+    setSelectedContacts(newSelection)
+  }
+
+  const generateCustomFields = async () => {
+    // Validate that required fields are filled
+    if (!contactForm.name || !contactForm.phoneNumber) {
+      alert('Please fill in the name and phone number before generating custom fields')
+      return
+    }
+
+    setGenerating(true)
+    try {
+      const response = await fetch('/api/contacts/generate-fields', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: contactForm.name,
+          phoneNumber: contactForm.phoneNumber,
+          email: contactForm.email || undefined,
+          businessName: contactForm.businessName || undefined,
+          businessWebsite: contactForm.businessWebsite || undefined,
+          notes: contactForm.notes || undefined,
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Convert the custom fields object to array format for the UI
+        const fieldsArray = Object.entries(data.customFields).map(([key, value]) => ({
+          key,
+          value: String(value)
+        }))
+        setContactForm({
+          ...contactForm,
+          customFields: fieldsArray
+        })
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to generate custom fields'}`)
+      }
+    } catch (error) {
+      console.error('Error generating custom fields:', error)
+      alert('Failed to generate custom fields')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const handleDelete = async (contactId: string) => {
     if (!confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
       return
@@ -246,13 +397,39 @@ export default function ContactsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
             <h1 className="text-3xl font-bold leading-tight text-gray-900">
               Contacts
+              {selectedContacts.size > 0 && (
+                <span className="ml-3 text-sm font-normal text-gray-600">
+                  ({selectedContacts.size} selected)
+                </span>
+              )}
             </h1>
-            <button
-              onClick={() => openModal()}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Add Contact
-            </button>
+            <div className="flex gap-2">
+              {selectedContacts.size > 0 && (
+                <>
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                  >
+                    <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Schedule Calls ({selectedContacts.size})
+                  </button>
+                  <button
+                    onClick={() => setSelectedContacts(new Set())}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Clear Selection
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => openModal()}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Add Contact
+              </button>
+            </div>
           </div>
         </header>
 
@@ -316,8 +493,17 @@ export default function ContactsPage() {
                     {filteredContacts.map((contact) => (
                       <li key={contact.id}>
                         <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
+                          <div className="flex items-center gap-4">
+                            {/* Checkbox for bulk selection */}
+                            <input
+                              type="checkbox"
+                              checked={selectedContacts.has(contact.id)}
+                              onChange={() => toggleContactSelection(contact.id)}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                            
+                            <div className="flex-1 flex items-center justify-between">
+                              <div className="flex-1">
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="text-sm font-medium text-indigo-600 truncate">
@@ -415,6 +601,19 @@ export default function ContactsPage() {
                             </div>
                             <div className="ml-4 flex gap-2">
                               <button
+                                onClick={() => {
+                                  setCallingContact(contact)
+                                  setShowCallModal(true)
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                                title="Call this contact"
+                              >
+                                <svg className="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                Call
+                              </button>
+                              <button
                                 onClick={() => openModal(contact)}
                                 className="text-sm text-indigo-600 hover:text-indigo-900"
                                 title="Edit contact"
@@ -430,6 +629,7 @@ export default function ContactsPage() {
                               </button>
                             </div>
                           </div>
+                        </div>
                         </div>
                       </li>
                     ))}
@@ -539,23 +739,53 @@ export default function ContactsPage() {
 
                 {/* Custom Fields */}
                 <div className="mb-4 border-t pt-4">
-                  <div className="flex justify-between items-center mb-2">
+                  <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-medium text-gray-700">
                       Custom Fields
                     </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setContactForm({
-                          ...contactForm,
-                          customFields: [...contactForm.customFields, { key: '', value: '' }]
-                        })
-                      }
-                      className="text-sm text-indigo-600 hover:text-indigo-800"
-                    >
-                      + Add Field
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={generateCustomFields}
+                        disabled={generating || !contactForm.name || !contactForm.phoneNumber}
+                        className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {generating ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Generate with AI
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setContactForm({
+                            ...contactForm,
+                            customFields: [...contactForm.customFields, { key: '', value: '' }]
+                          })
+                        }
+                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                      >
+                        + Add Field
+                      </button>
+                    </div>
                   </div>
+                  {!contactForm.name || !contactForm.phoneNumber ? (
+                    <p className="text-xs text-gray-500 mb-2">
+                      💡 Fill in the name and phone number to enable AI generation
+                    </p>
+                  ) : null}
                   {contactForm.customFields.map((field, index) => (
                     <div key={index} className="flex gap-2 mb-2">
                       <input
@@ -631,6 +861,164 @@ export default function ContactsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call Now Modal */}
+      {showCallModal && callingContact && (
+        <div className="fixed z-50 inset-0 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => !calling && setShowCallModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  Call {callingContact.name}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Calling: {callingContact.phoneNumber}
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      From Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={callConfig.fromNumber}
+                      onChange={(e) => setCallConfig({ ...callConfig, fromNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="+61480038722"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Agent ID
+                    </label>
+                    <input
+                      type="text"
+                      value={callConfig.agentId}
+                      onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="agent_xxxxx"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+                <button
+                  onClick={handleCallNow}
+                  disabled={calling}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                >
+                  {calling ? 'Calling...' : 'Call Now'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCallModal(false)
+                    setCallingContact(null)
+                  }}
+                  disabled={calling}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Calls Modal */}
+      {showScheduleModal && (
+        <div className="fixed z-50 inset-0 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => !scheduling && setShowScheduleModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  Schedule Calls to {selectedContacts.size} Contact{selectedContacts.size !== 1 ? 's' : ''}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Selected Contacts:
+                    </label>
+                    <div className="max-h-32 overflow-y-auto bg-gray-50 rounded-md p-2">
+                      {contacts
+                        .filter(c => selectedContacts.has(c.id))
+                        .map(c => (
+                          <div key={c.id} className="text-sm text-gray-600 py-1">
+                            {c.name} - {c.phoneNumber}
+                          </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Calls will be placed sequentially with 2-minute intervals
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Schedule Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      From Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={callConfig.fromNumber}
+                      onChange={(e) => setCallConfig({ ...callConfig, fromNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="+61480038722"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Agent ID
+                    </label>
+                    <input
+                      type="text"
+                      value={callConfig.agentId}
+                      onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="agent_xxxxx"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+                <button
+                  onClick={handleScheduleCalls}
+                  disabled={scheduling || !scheduleTime}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                >
+                  {scheduling ? 'Scheduling...' : 'Schedule Calls'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowScheduleModal(false)
+                    setScheduleTime('')
+                  }}
+                  disabled={scheduling}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

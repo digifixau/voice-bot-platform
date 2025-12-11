@@ -1,5 +1,76 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Voice Bot Platform
+
+A comprehensive voice bot platform with call tracking, contact management, and AI-powered features.
+
+### Features
+
+- 📞 **Call Management** - Track inbound and outbound calls with detailed analytics
+- 👥 **Contact Management** - Manage contacts with custom fields and business information
+- 🤖 **AI-Powered Custom Fields** - Automatically generate relevant custom fields for contacts using OpenAI
+- ☎️ **Outbound Calling** - Place calls directly to contacts from the UI with configurable settings
+- 📅 **Call Scheduling** - Schedule calls to multiple contacts with automatic sequential execution
+- 📊 **Call Analytics** - View call details, transcripts, and analysis
+- 🔐 **Multi-tenant Support** - Organization-based access control
+- ⏰ **Automated Call Processing** - Background job processes scheduled calls automatically
+
+### Environment Setup
+
+1. Copy `.env.example` to `.env.local`:
+```bash
+cp .env.example .env.local
+```
+
+2. Fill in the required environment variables:
+- `DATABASE_URL` - Your PostgreSQL database URL
+- `NEXTAUTH_SECRET` - Secret for NextAuth.js authentication
+- `NEXTAUTH_URL` - Your application URL (e.g., http://localhost:3000)
+- `RETELL_API_KEY` - Your Retell AI API key
+- `OPENAI_API_KEY` - Your OpenAI API key (for AI custom field generation)
+
+3. Run database migrations:
+```bash
+npx prisma db push
+npx prisma generate
+```
+
+### Call Features Setup
+
+#### Immediate Calling
+- Click the green "Call" button next to any contact
+- Configure the "From Number" and "Agent ID" in the modal
+- Click "Call Now" to place the call immediately
+
+#### Bulk Call Scheduling
+1. Select multiple contacts using the checkboxes
+2. Click "Schedule Calls" button in the header
+3. Set the scheduled time (must be in the future)
+4. Configure "From Number" and "Agent ID"
+5. Calls will be executed sequentially with 2-minute intervals
+
+#### Automated Call Processing
+Set up a cron job to process scheduled calls:
+
+**Using Vercel Cron Jobs** (vercel.json):
+```json
+{
+  "crons": [{
+    "path": "/api/cron/process-scheduled-calls",
+    "schedule": "* * * * *"
+  }]
+}
+```
+
+**Or use any external cron service:**
+```bash
+# Call this endpoint every minute
+curl -X POST https://your-domain.com/api/cron/process-scheduled-calls \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+Set `CRON_SECRET` in your environment variables to secure the cron endpoint.
+
 ## Getting Started
 
 First, run the development server:
