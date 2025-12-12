@@ -36,16 +36,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    // Get the agent to find organizationId for linking
-    const agent = await prisma.agent.findFirst({
-      where: { 
-        retellAgentId: validatedData.agentId,
-        organizationId: session.user.organizationId
-      }
+    // Get or create the agent
+    let agent = await prisma.agent.findUnique({
+      where: { retellAgentId: validatedData.agentId }
     })
 
     if (!agent) {
-      return NextResponse.json({ error: 'Agent not found or unauthorized' }, { status: 403 })
+      // Auto-create the agent if it doesn't exist
+      agent = await prisma.agent.create({
+        data: {
+          retellAgentId: validatedData.agentId,
+          organizationId: session.user.organizationId,
+          name: `Agent ${validatedData.agentId}`
+        }
+      })
+    } else if (agent.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ error: 'Agent ID is already registered to another organization' }, { status: 403 })
     }
 
     // Prepare dynamic variables by merging contact custom fields with provided variables

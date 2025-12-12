@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/cron/process-scheduled-calls - Process pending scheduled calls
-// This endpoint should be called by a cron job every minute
+// This endpoint acts as a webhook to be called by an external scheduler or trigger
 export async function POST(req: NextRequest) {
   try {
-    // Verify cron secret to prevent unauthorized access
+    // Verify secret to prevent unauthorized access
     const authHeader = req.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET || 'your-cron-secret-key'
+    const webhookSecret = process.env.CRON_SECRET || 'your-cron-secret-key'
     
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (authHeader !== `Bearer ${webhookSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

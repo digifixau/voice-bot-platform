@@ -83,25 +83,26 @@ export async function POST(req: NextRequest) {
       }, { status: 404 })
     }
 
-    // Verify agent belongs to organization
-    const agent = await prisma.agent.findFirst({
-      where: {
-        retellAgentId: validatedData.agentId,
-        organizationId: session.user.organizationId
-      }
+    // Verify agent belongs to organization or create if new
+    let agent = await prisma.agent.findUnique({
+      where: { retellAgentId: validatedData.agentId }
     })
 
     if (!agent) {
-      return NextResponse.json({ error: 'Agent not found or unauthorized' }, { status: 403 })
+      // Auto-create the agent if it doesn't exist
+      agent = await prisma.agent.create({
+        data: {
+          retellAgentId: validatedData.agentId,
+          organizationId: session.user.organizationId,
+          name: `Agent ${validatedData.agentId}`
+        }
+      })
+    } else if (agent.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ error: 'Agent ID is already registered to another organization' }, { status: 403 })
     }
 
-    // Validate scheduled time is in the future
+    // Parse scheduled time
     const scheduledTime = new Date(validatedData.scheduledTime)
-    if (scheduledTime <= new Date()) {
-      return NextResponse.json({
-        error: 'Scheduled time must be in the future'
-      }, { status: 400 })
-    }
 
     // Create scheduled calls for each contact
     // Stagger calls by 2 minutes to ensure sequential execution

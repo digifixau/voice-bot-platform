@@ -212,11 +212,6 @@ export default function ContactsPage() {
       return
     }
 
-    if (!scheduleTime) {
-      alert('Please select a scheduled time')
-      return
-    }
-
     setScheduling(true)
     try {
       const response = await fetch('/api/scheduled-calls', {
@@ -226,7 +221,7 @@ export default function ContactsPage() {
         },
         body: JSON.stringify({
           contactIds: Array.from(selectedContacts),
-          scheduledTime: new Date(scheduleTime).toISOString(),
+          scheduledTime: new Date().toISOString(),
           fromNumber: callConfig.fromNumber,
           agentId: callConfig.agentId
         })
@@ -240,11 +235,11 @@ export default function ContactsPage() {
         setScheduleTime('')
       } else {
         const error = await response.json()
-        alert(`Error: ${error.error || 'Failed to schedule calls'}`)
+        alert(`Error: ${error.error || 'Failed to start call queue'}`)
       }
     } catch (error) {
-      console.error('Error scheduling calls:', error)
-      alert('Failed to schedule calls')
+      console.error('Error starting call queue:', error)
+      alert('Failed to start call queue')
     } finally {
       setScheduling(false)
     }
@@ -411,9 +406,9 @@ export default function ContactsPage() {
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                   >
                     <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
-                    Schedule Calls ({selectedContacts.size})
+                    Start Call Queue ({selectedContacts.size})
                   </button>
                   <button
                     onClick={() => setSelectedContacts(new Set())}
@@ -650,109 +645,126 @@ export default function ContactsPage() {
                 {editingContact ? 'Edit Contact' : 'Add New Contact'}
               </h3>
               <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={contactForm.name}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter contact name"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={contactForm.phoneNumber}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, phoneNumber: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="+1234567890"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={contactForm.email}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="contact@example.com"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={contactForm.businessName}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, businessName: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Company or business name"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Business Website
-                  </label>
-                  <input
-                    type="url"
-                    value={contactForm.businessWebsite}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, businessWebsite: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="https://example.com"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes
-                  </label>
-                  <textarea
-                    value={contactForm.notes}
-                    onChange={(e) =>
-                      setContactForm({ ...contactForm, notes: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Add any notes about this contact..."
-                    rows={3}
-                  />
+                <div className="space-y-6">
+                  {/* Contact Information */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Contact Information</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={contactForm.name}
+                          onChange={(e) =>
+                            setContactForm({ ...contactForm, name: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          placeholder="Enter contact name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={contactForm.phoneNumber}
+                          onChange={(e) =>
+                            setContactForm({ ...contactForm, phoneNumber: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          placeholder="+1234567890"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={contactForm.email}
+                        onChange={(e) =>
+                          setContactForm({ ...contactForm, email: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                        placeholder="contact@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Business Details */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 border-t pt-4">Business Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Business Name
+                        </label>
+                        <input
+                          type="text"
+                          value={contactForm.businessName}
+                          onChange={(e) =>
+                            setContactForm({ ...contactForm, businessName: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          placeholder="Company name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Business Website
+                        </label>
+                        <input
+                          type="url"
+                          value={contactForm.businessWebsite}
+                          onChange={(e) =>
+                            setContactForm({ ...contactForm, businessWebsite: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      value={contactForm.notes}
+                      onChange={(e) =>
+                        setContactForm({ ...contactForm, notes: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                      placeholder="Add any notes about this contact..."
+                      rows={3}
+                    />
+                  </div>
                 </div>
 
                 {/* Custom Fields */}
-                <div className="mb-4 border-t pt-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="border-t pt-6 mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Custom Fields
-                    </label>
-                    <div className="flex gap-2">
+                    </h4>
+                    <div className="flex gap-3">
                       <button
                         type="button"
                         onClick={generateCustomFields}
                         disabled={generating || !contactForm.name || !contactForm.phoneNumber}
-                        className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                       >
                         {generating ? (
                           <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -760,7 +772,7 @@ export default function ContactsPage() {
                           </>
                         ) : (
                           <>
-                            <svg className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="-ml-1 mr-2 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                             Generate with AI
@@ -775,55 +787,66 @@ export default function ContactsPage() {
                             customFields: [...contactForm.customFields, { key: '', value: '' }]
                           })
                         }
-                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-md hover:bg-indigo-100 transition-colors"
                       >
                         + Add Field
                       </button>
                     </div>
                   </div>
                   {!contactForm.name || !contactForm.phoneNumber ? (
-                    <p className="text-xs text-gray-500 mb-2">
-                      💡 Fill in the name and phone number to enable AI generation
-                    </p>
-                  ) : null}
-                  {contactForm.customFields.map((field, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={field.key}
-                        onChange={(e) => {
-                          const newFields = [...contactForm.customFields]
-                          newFields[index].key = e.target.value
-                          setContactForm({ ...contactForm, customFields: newFields })
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Field name"
-                      />
-                      <input
-                        type="text"
-                        value={field.value}
-                        onChange={(e) => {
-                          const newFields = [...contactForm.customFields]
-                          newFields[index].value = e.target.value
-                          setContactForm({ ...contactForm, customFields: newFields })
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Value"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newFields = contactForm.customFields.filter((_, i) => i !== index)
-                          setContactForm({ ...contactForm, customFields: newFields })
-                        }}
-                        className="px-3 py-2 text-red-600 hover:text-red-800"
-                      >
-                        ×
-                      </button>
+                    <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-xs mb-4 flex items-center">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      Fill in the name and phone number to enable AI generation
                     </div>
-                  ))}
+                  ) : null}
+                  <div className="space-y-3">
+                    {contactForm.customFields.map((field, index) => (
+                      <div key={index} className="flex gap-3 items-start group">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={field.key}
+                            onChange={(e) => {
+                              const newFields = [...contactForm.customFields]
+                              newFields[index].key = e.target.value
+                              setContactForm({ ...contactForm, customFields: newFields })
+                            }}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
+                            placeholder="Field name"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={field.value}
+                            onChange={(e) => {
+                              const newFields = [...contactForm.customFields]
+                              newFields[index].value = e.target.value
+                              setContactForm({ ...contactForm, customFields: newFields })
+                            }}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
+                            placeholder="Value"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFields = contactForm.customFields.filter((_, i) => i !== index)
+                            setContactForm({ ...contactForm, customFields: newFields })
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Remove field"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                   {contactForm.customFields.length === 0 && (
-                    <p className="text-sm text-gray-500 italic">No custom fields added</p>
+                    <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <p className="text-sm text-gray-500">No custom fields added yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Add fields manually or generate them with AI</p>
+                    </div>
                   )}
                 </div>
                 <div className="flex gap-3 justify-end">
@@ -942,7 +965,7 @@ export default function ContactsPage() {
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  Schedule Calls to {selectedContacts.size} Contact{selectedContacts.size !== 1 ? 's' : ''}
+                  Start Call Queue for {selectedContacts.size} Contact{selectedContacts.size !== 1 ? 's' : ''}
                 </h3>
                 <div className="space-y-4">
                   <div>
@@ -959,20 +982,8 @@ export default function ContactsPage() {
                         ))}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Calls will be placed sequentially with 2-minute intervals
+                      Calls will be placed sequentially with 2-minute intervals starting immediately.
                     </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Schedule Time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      min={new Date().toISOString().slice(0, 16)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1003,10 +1014,10 @@ export default function ContactsPage() {
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
                 <button
                   onClick={handleScheduleCalls}
-                  disabled={scheduling || !scheduleTime}
+                  disabled={scheduling}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
                 >
-                  {scheduling ? 'Scheduling...' : 'Schedule Calls'}
+                  {scheduling ? 'Starting...' : 'Start Call Queue'}
                 </button>
                 <button
                   onClick={() => {
