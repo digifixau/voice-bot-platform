@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { Client } from '@upstash/qstash'
 
 const scheduleCallSchema = z.object({
   contactIds: z.array(z.string()).min(1, 'At least one contact is required'),
@@ -104,14 +105,23 @@ export async function POST(req: NextRequest) {
     // Parse scheduled time
     const scheduledTime = new Date(validatedData.scheduledTime)
 
+    // Initialize QStash client
+    const qstashClient = new Client({
+      token: process.env.QSTASH_TOKEN || '',
+    })
+
+    // Determine base URL for webhook
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}`
+    const webhookUrl = `${appUrl}/api/webhooks/qstash/trigger-call`
+
     // Create scheduled calls for each contact
     // Stagger calls by 2 minutes to ensure sequential execution
     const scheduledCalls = await Promise.all(
-      contacts.map((contact, index) => {
+      contacts.map(async (contact, index) => {
         const callTime = new Date(scheduledTime)
         callTime.setMinutes(callTime.getMinutes() + (index * 2)) // 2-minute intervals
 
-        return prisma.scheduledCall.create({
+        const scheduledCall = await prisma.scheduledCall.create({
           data: {
             contactId: contact.id,
             organizationId: session.user.organizationId!,
@@ -133,6 +143,22 @@ export async function POST(req: NextRequest) {
             }
           }
         })
+
+        // Schedule with QStash
+        try {
+          const notBefore = Math.floor(callTime.getTime() / 1000)
+          
+          await qstashClient.publishJSON({
+            url: webhookUrl,
+            body: { scheduledCallId: scheduledCall.id },
+            notBefore: notBefore,
+          })
+        } catch (qstashError) {
+          console.error('Failed to schedule with QStash:', qstashError)
+          // Optionally update status to FAILED or log error
+        }
+
+        return scheduledCall
       })
     )
 

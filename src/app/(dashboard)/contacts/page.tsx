@@ -46,6 +46,7 @@ export default function ContactsPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now')
 
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -212,6 +213,11 @@ export default function ContactsPage() {
       return
     }
 
+    if (scheduleMode === 'later' && !scheduleTime) {
+      alert('Please select a start time')
+      return
+    }
+
     setScheduling(true)
     try {
       const response = await fetch('/api/scheduled-calls', {
@@ -221,7 +227,7 @@ export default function ContactsPage() {
         },
         body: JSON.stringify({
           contactIds: Array.from(selectedContacts),
-          scheduledTime: new Date().toISOString(),
+          scheduledTime: scheduleMode === 'later' ? new Date(scheduleTime).toISOString() : new Date().toISOString(),
           fromNumber: callConfig.fromNumber,
           agentId: callConfig.agentId
         })
@@ -233,6 +239,7 @@ export default function ContactsPage() {
         setShowScheduleModal(false)
         setSelectedContacts(new Set())
         setScheduleTime('')
+        setScheduleMode('now')
       } else {
         const error = await response.json()
         alert(`Error: ${error.error || 'Failed to start call queue'}`)
@@ -981,10 +988,54 @@ export default function ContactsPage() {
                           </div>
                         ))}
                     </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Time
+                    </label>
+                    <div className="flex gap-4 mb-3">
+                      <label className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          className="form-radio text-indigo-600"
+                          name="scheduleMode"
+                          value="now"
+                          checked={scheduleMode === 'now'}
+                          onChange={() => setScheduleMode('now')}
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Start Immediately</span>
+                      </label>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          className="form-radio text-indigo-600"
+                          name="scheduleMode"
+                          value="later"
+                          checked={scheduleMode === 'later'}
+                          onChange={() => setScheduleMode('later')}
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Schedule for Later</span>
+                      </label>
+                    </div>
+                    
+                    {scheduleMode === 'later' && (
+                      <input
+                        type="datetime-local"
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        min={new Date().toISOString().slice(0, 16)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 mb-2"
+                      />
+                    )}
+                    
                     <p className="text-xs text-gray-500 mt-1">
-                      Calls will be placed sequentially with 2-minute intervals starting immediately.
+                      {scheduleMode === 'now' 
+                        ? 'Calls will be placed sequentially with 2-minute intervals starting immediately.'
+                        : 'Calls will be placed sequentially with 2-minute intervals starting from the selected time.'}
                     </p>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       From Number
