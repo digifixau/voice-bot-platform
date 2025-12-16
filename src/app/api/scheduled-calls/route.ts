@@ -113,6 +113,8 @@ export async function POST(req: NextRequest) {
     // Determine base URL for webhook
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}`
     const webhookUrl = `${appUrl}/api/webhooks/qstash/trigger-call`
+    
+    console.log('Scheduling calls with webhook URL:', webhookUrl)
 
     // Create scheduled calls for each contact
     // Stagger calls by 2 minutes to ensure sequential execution
@@ -147,6 +149,7 @@ export async function POST(req: NextRequest) {
         // Schedule with QStash
         try {
           const notBefore = Math.floor(callTime.getTime() / 1000)
+          console.log(`Publishing to QStash: ${webhookUrl}, scheduledCallId: ${scheduledCall.id}, notBefore: ${notBefore}`)
           
           await qstashClient.publishJSON({
             url: webhookUrl,

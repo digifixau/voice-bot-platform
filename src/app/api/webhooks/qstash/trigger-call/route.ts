@@ -3,11 +3,14 @@ import { verifySignatureAppRouter } from '@upstash/qstash/dist/nextjs'
 import { prisma } from '@/lib/prisma'
 
 async function handler(req: NextRequest) {
+  console.log('Received QStash webhook request')
   try {
     const body = await req.json()
+    console.log('Webhook body:', body)
     const { scheduledCallId } = body
 
     if (!scheduledCallId) {
+      console.error('Missing scheduledCallId in webhook body')
       return NextResponse.json({ error: 'Missing scheduledCallId' }, { status: 400 })
     }
 
@@ -17,10 +20,14 @@ async function handler(req: NextRequest) {
     })
 
     if (!scheduledCall) {
+      console.error(`Scheduled call not found: ${scheduledCallId}`)
       return NextResponse.json({ error: 'Scheduled call not found' }, { status: 404 })
     }
 
+    console.log(`Processing scheduled call: ${scheduledCallId}, Status: ${scheduledCall.status}`)
+
     if (scheduledCall.status !== 'PENDING') {
+      console.log(`Call ${scheduledCallId} already processed or cancelled`)
       return NextResponse.json({ message: 'Call already processed or cancelled' }, { status: 200 })
     }
 
@@ -61,6 +68,12 @@ async function handler(req: NextRequest) {
         }),
       }
 
+      console.log('Initiating Retell call with payload:', {
+        from_number: scheduledCall.fromNumber,
+        to_number: scheduledCall.contact.phoneNumber,
+        agent_id: scheduledCall.agentId
+      })
+
       const retellPayload = {
         from_number: scheduledCall.fromNumber,
         to_number: scheduledCall.contact.phoneNumber,
@@ -79,10 +92,12 @@ async function handler(req: NextRequest) {
 
       if (!retellResponse.ok) {
           const errorData = await retellResponse.json()
+          console.error('Retell API error:', errorData)
           throw new Error(`Retell API error: ${JSON.stringify(errorData)}`)
       }
 
       const retellData = await retellResponse.json()
+      console.log('Retell call initiated successfully:', retellData)
 
       // Find internal Agent ID
       const agent = await prisma.agent.findUnique({
