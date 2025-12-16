@@ -1024,7 +1024,7 @@ export default function ContactsPage() {
                         type="datetime-local"
                         value={scheduleTime}
                         onChange={(e) => setScheduleTime(e.target.value)}
-                        min={new Date().toISOString().slice(0, 16)}
+                        min={new Date().toLocaleString('sv').slice(0, 16)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 mb-2"
                       />
                     )}
