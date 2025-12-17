@@ -85,6 +85,33 @@ export async function PATCH(
     const body = await req.json()
     const validatedData = updateContactSchema.parse(body)
 
+    // Validate custom fields against organization definitions
+    if (validatedData.customFields) {
+        const organization = await prisma.organization.findUnique({
+            where: { id: session.user.organizationId }
+        })
+
+        if (organization && organization.customFieldDefinitions) {
+            const definitions = organization.customFieldDefinitions as any[]
+            const allowedKeys = definitions.map(def => def.key)
+            const providedKeys = Object.keys(validatedData.customFields)
+            
+            const invalidKeys = providedKeys.filter(key => !allowedKeys.includes(key))
+            
+            if (invalidKeys.length > 0) {
+                return NextResponse.json(
+                { error: `Invalid custom fields: ${invalidKeys.join(', ')}. Allowed fields are: ${allowedKeys.join(', ')}` },
+                { status: 400 }
+                )
+            }
+        } else if (organization && !organization.customFieldDefinitions) {
+             return NextResponse.json(
+                { error: 'No custom fields are defined for this organization.' },
+                { status: 400 }
+            )
+        }
+    }
+
     // If phone number is being updated, check for duplicates
     if (validatedData.phoneNumber && validatedData.phoneNumber !== existingContact.phoneNumber) {
       const duplicateContact = await prisma.contact.findFirst({

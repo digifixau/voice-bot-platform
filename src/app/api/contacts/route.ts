@@ -56,6 +56,38 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validatedData = createContactSchema.parse(body)
 
+    // Fetch organization to validate custom fields
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId }
+    })
+
+    if (!organization) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+
+    // Validate custom fields against organization definitions
+    if (validatedData.customFields && organization.customFieldDefinitions) {
+      const definitions = organization.customFieldDefinitions as any[]
+      const allowedKeys = definitions.map(def => def.key)
+      const providedKeys = Object.keys(validatedData.customFields)
+      
+      const invalidKeys = providedKeys.filter(key => !allowedKeys.includes(key))
+      
+      if (invalidKeys.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid custom fields: ${invalidKeys.join(', ')}. Allowed fields are: ${allowedKeys.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    } else if (validatedData.customFields && !organization.customFieldDefinitions) {
+        // If no definitions exist, disallow all custom fields (or allow all? User said "user should not be able to add own custom variables")
+        // "AI or User fills the value for the predefined variables only" implies strictness.
+        return NextResponse.json(
+            { error: 'No custom fields are defined for this organization.' },
+            { status: 400 }
+        )
+    }
+
     // Check if contact with same phone number already exists in this organization
     const existingContact = await prisma.contact.findFirst({
       where: {

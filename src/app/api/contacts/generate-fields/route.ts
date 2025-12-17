@@ -25,8 +25,41 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validatedData = generateFieldsSchema.parse(body)
 
-    // Construct prompt for OpenAI
-    const prompt = `You are an AI assistant helping to generate useful custom fields for a business contact management system.
+    // Fetch organization definitions
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId }
+    })
+
+    let prompt = ''
+
+    if (organization?.customFieldDefinitions) {
+        const definitions = organization.customFieldDefinitions as any[]
+        const fieldsList = definitions.map(d => `- ${d.key} (${d.label}): ${d.description || ''}`).join('\n')
+
+        prompt = `You are an AI assistant helping to fill predefined custom fields for a business contact.
+
+Given the following contact information:
+- Name: ${validatedData.name}
+- Phone: ${validatedData.phoneNumber}
+${validatedData.email ? `- Email: ${validatedData.email}` : ''}
+${validatedData.businessName ? `- Business Name: ${validatedData.businessName}` : ''}
+${validatedData.businessWebsite ? `- Website: ${validatedData.businessWebsite}` : ''}
+${validatedData.notes ? `- Notes: ${validatedData.notes}` : ''}
+
+You must ONLY generate values for the following predefined fields:
+${fieldsList}
+
+Return a valid JSON object where keys are exactly as listed above, and values are inferred from the contact info or general knowledge about the business/industry. If a value cannot be inferred, use an empty string or "Unknown".
+
+Example format:
+{
+  "${definitions[0]?.key || 'field_key'}": "Inferred Value"
+}
+
+Do not include any markdown formatting, explanation, or additional text - only the JSON object.`
+    } else {
+        // Fallback to open-ended generation if no definitions exist
+        prompt = `You are an AI assistant helping to generate useful custom fields for a business contact management system.
 
 Given the following contact information:
 - Name: ${validatedData.name}
@@ -55,6 +88,10 @@ Example format:
 }
 
 Do not include any markdown formatting, explanation, or additional text - only the JSON object.`
+    }
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({

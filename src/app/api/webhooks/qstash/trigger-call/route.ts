@@ -50,6 +50,11 @@ async function handler(req: NextRequest) {
       const providedVariables = (scheduledCall.dynamicVariables as Record<string, any>) || {}
       
       const dynamicVariables = {
+        // Standard Retell/LLM prompt variable names (aliases)
+        name: scheduledCall.contact.name,
+        company_name: scheduledCall.contact.businessName || '',
+        
+        // Original fields
         contact_name: scheduledCall.contact.name,
         contact_phone: scheduledCall.contact.phoneNumber,
         contact_email: scheduledCall.contact.email || '',
@@ -72,7 +77,8 @@ async function handler(req: NextRequest) {
       console.log('Initiating Retell call with payload:', {
         from_number: scheduledCall.fromNumber,
         to_number: scheduledCall.contact.phoneNumber,
-        agent_id: scheduledCall.agentId
+        agent_id: scheduledCall.agentId,
+        dynamic_variables_keys: Object.keys(dynamicVariables)
       })
 
       const retellPayload = {
