@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySignatureAppRouter } from '@upstash/qstash/dist/nextjs'
 import { prisma } from '@/lib/prisma'
+import { Client } from '@upstash/qstash'
 
 async function handler(req: NextRequest) {
   console.log('Received QStash webhook request')
@@ -140,8 +141,53 @@ async function handler(req: NextRequest) {
           errorMessage: error instanceof Error ? error.message : 'Unknown error'
         }
       })
+
+      // TRIGGER NEXT CALL (Daisy-chain recovery)
+      // If the call failed to initiate (e.g. invalid number), we must trigger the next one manually
+      // because Retell won't send a 'call_ended' webhook for a call that never started.
+      try {
+        console.log(`Call ${scheduledCallId} failed. Attempting to trigger next call in batch...`)
+        
+        const whereClause: any = {
+            organizationId: scheduledCall.organizationId,
+            status: 'PENDING',
+        }
+        
+        if (scheduledCall.batchId) {
+            whereClause.batchId = scheduledCall.batchId
+        } else {
+            whereClause.batchId = null
+        }
+
+        const nextScheduledCall = await prisma.scheduledCall.findFirst({
+          where: whereClause,
+          orderBy: [
+            { scheduledTime: 'asc' },
+            { createdAt: 'asc' }
+          ]
+        })
+
+        if (nextScheduledCall) {
+          console.log(`Triggering next scheduled call (recovery): ${nextScheduledCall.id}`)
+          
+          const qstashClient = new Client({ token: process.env.QSTASH_TOKEN! })
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+          const webhookUrl = `${appUrl}/api/webhooks/qstash/trigger-call`
+          
+          await qstashClient.publishJSON({
+            url: webhookUrl,
+            body: { scheduledCallId: nextScheduledCall.id },
+          })
+          console.log('Next call triggered via QStash (recovery)')
+        } else {
+          console.log('No more pending calls for this batch (recovery).')
+        }
+      } catch (recoveryError) {
+        console.error('Error in recovery daisy-chaining:', recoveryError)
+      }
       
-      return NextResponse.json({ error: 'Failed to execute call' }, { status: 500 })
+      // Return 200 to prevent QStash from retrying THIS specific failed number
+      return NextResponse.json({ message: 'Call failed, moved to next', error: error instanceof Error ? error.message : 'Unknown error' }, { status: 200 })
     }
 
   } catch (error) {
