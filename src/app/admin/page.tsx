@@ -9,6 +9,7 @@ interface Organization {
   id: string
   name: string
   description?: string
+  customFieldDefinitions?: any[]
   createdAt: string
   _count: {
     users: number
@@ -57,12 +58,14 @@ export default function AdminPage() {
   const [showUserModal, setShowUserModal] = useState(false)
   const [showAgentModal, setShowAgentModal] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null)
   const [submitting, setSubmitting] = useState(false)
   
   // Organization form state
   const [orgForm, setOrgForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    customFieldDefinitions: [] as { key: string; label: string; description: string }[]
   })
   
   // User form state
@@ -132,7 +135,7 @@ export default function AdminPage() {
       
       if (response.ok) {
         setShowOrgModal(false)
-        setOrgForm({ name: '', description: '' })
+        setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
         fetchData()
       } else {
         const error = await response.json()
@@ -228,6 +231,35 @@ export default function AdminPage() {
     }
   }
 
+  const handleEditOrganization = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingOrg) return
+    
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/admin/organizations/${editingOrg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orgForm)
+      })
+      
+      if (response.ok) {
+        setShowOrgModal(false)
+        setEditingOrg(null)
+        setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+        fetchData()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to update organization'}`)
+      }
+    } catch (error) {
+      console.error('Error updating organization:', error)
+      alert('Failed to update organization')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleDeleteAgent = async (agentId: string) => {
     if (!confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
       return
@@ -316,6 +348,21 @@ export default function AdminPage() {
       setAgentForm({ retellAgentId: '', name: '', organizationId: '' })
     }
     setShowAgentModal(true)
+  }
+
+  const openOrgModal = (org?: Organization) => {
+    if (org) {
+      setEditingOrg(org)
+      setOrgForm({
+        name: org.name,
+        description: org.description || '',
+        customFieldDefinitions: (org.customFieldDefinitions as any[]) || []
+      })
+    } else {
+      setEditingOrg(null)
+      setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+    }
+    setShowOrgModal(true)
   }
 
   if (status === 'loading') {
@@ -419,7 +466,7 @@ export default function AdminPage() {
                         Organizations
                       </h3>
                       <button 
-                        onClick={() => setShowOrgModal(true)}
+                        onClick={() => openOrgModal()}
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                       >
                         Add Organization
@@ -452,7 +499,10 @@ export default function AdminPage() {
                                 </div>
                               </div>
                               <div className="ml-4">
-                                <button className="text-sm text-indigo-600 hover:text-indigo-900">
+                                <button 
+                                  onClick={() => openOrgModal(org)}
+                                  className="text-sm text-indigo-600 hover:text-indigo-900"
+                                >
                                   Edit
                                 </button>
                               </div>
@@ -606,15 +656,15 @@ export default function AdminPage() {
         </main>
       </div>
 
-      {/* Add Organization Modal */}
+      {/* Add/Edit Organization Modal */}
       {showOrgModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Add New Organization
+                {editingOrg ? 'Edit Organization' : 'Add New Organization'}
               </h3>
-              <form onSubmit={handleCreateOrganization}>
+              <form onSubmit={editingOrg ? handleEditOrganization : handleCreateOrganization}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Organization Name *
@@ -640,12 +690,86 @@ export default function AdminPage() {
                     rows={3}
                   />
                 </div>
-                <div className="flex gap-3 justify-end">
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Custom Field Definitions
+                  </label>
+                  <div className="space-y-3">
+                    {orgForm.customFieldDefinitions.map((field, index) => (
+                      <div key={index} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md">
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Key (e.g. first_offer)"
+                            value={field.key}
+                            onChange={(e) => {
+                              const newFields = [...orgForm.customFieldDefinitions]
+                              newFields[index].key = e.target.value
+                              setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Label (e.g. First Offer)"
+                            value={field.label}
+                            onChange={(e) => {
+                              const newFields = [...orgForm.customFieldDefinitions]
+                              newFields[index].label = e.target.value
+                              setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Description (optional)"
+                            value={field.description}
+                            onChange={(e) => {
+                              const newFields = [...orgForm.customFieldDefinitions]
+                              newFields[index].description = e.target.value
+                              setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFields = orgForm.customFieldDefinitions.filter((_, i) => i !== index)
+                            setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                          }}
+                          className="text-red-600 hover:text-red-800 text-sm px-2 py-1"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrgForm({
+                          ...orgForm,
+                          customFieldDefinitions: [
+                            ...orgForm.customFieldDefinitions,
+                            { key: '', label: '', description: '' }
+                          ]
+                        })
+                      }}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      + Add Custom Field
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end mt-6">
                   <button
                     type="button"
                     onClick={() => {
                       setShowOrgModal(false)
-                      setOrgForm({ name: '', description: '' })
+                      setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+                      setEditingOrg(null)
                     }}
                     className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                   >
@@ -656,7 +780,7 @@ export default function AdminPage() {
                     disabled={submitting}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Creating...' : 'Create Organization'}
+                    {submitting ? (editingOrg ? 'Updating...' : 'Creating...') : (editingOrg ? 'Update Organization' : 'Create Organization')}
                   </button>
                 </div>
               </form>
