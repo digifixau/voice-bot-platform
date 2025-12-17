@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { Client } from '@upstash/qstash'
 
 // Retell AI webhook payload schema
 const retellWebhookSchema = z.object({
@@ -235,6 +236,63 @@ export async function POST(req: NextRequest) {
       })
 
       console.log('Call recording created/updated:', recording.id)
+    }
+
+    // Trigger the next scheduled call (Daisy-chaining)
+    try {
+      // Find the ScheduledCall associated with this Retell call
+      const currentScheduledCall = await prisma.scheduledCall.findFirst({
+        where: { retellCallId: call.call_id }
+      })
+
+      if (currentScheduledCall) {
+        console.log(`Found associated ScheduledCall: ${currentScheduledCall.id}. Checking for next call in batch ${currentScheduledCall.batchId || 'none'}...`)
+
+        // Find the next PENDING ScheduledCall for this organization AND batch
+        // We strictly follow the batch ID to avoid interleaving different call lists.
+        const whereClause: any = {
+            organizationId: currentScheduledCall.organizationId,
+            status: 'PENDING',
+        }
+        
+        if (currentScheduledCall.batchId) {
+            whereClause.batchId = currentScheduledCall.batchId
+        } else {
+            // For legacy calls without batchId, we might want to process them or just ignore batching.
+            // But to be safe and avoid picking up a new batch's calls, we should probably look for null batchId.
+            whereClause.batchId = null
+        }
+
+        const nextScheduledCall = await prisma.scheduledCall.findFirst({
+          where: whereClause,
+          orderBy: [
+            { scheduledTime: 'asc' },
+            { createdAt: 'asc' }
+          ]
+        })
+
+        if (nextScheduledCall) {
+          console.log(`Triggering next scheduled call: ${nextScheduledCall.id}`)
+          
+          const qstashClient = new Client({ token: process.env.QSTASH_TOKEN! })
+          // Ensure we have the correct base URL. 
+          // In production, NEXT_PUBLIC_APP_URL should be set. 
+          // If running locally with ngrok, it should be the ngrok URL.
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+          const webhookUrl = `${appUrl}/api/webhooks/qstash/trigger-call`
+          
+          console.log(`Publishing to QStash: ${webhookUrl}`)
+          await qstashClient.publishJSON({
+            url: webhookUrl,
+            body: { scheduledCallId: nextScheduledCall.id },
+          })
+          console.log('Next call triggered via QStash')
+        } else {
+          console.log('No more pending calls for this organization.')
+        }
+      }
+    } catch (chainError) {
+      console.error('Error in daisy-chaining calls:', chainError)
     }
 
     return NextResponse.json({

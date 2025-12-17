@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { Client } from '@upstash/qstash'
+import crypto from 'crypto'
 
 const scheduleCallSchema = z.object({
   contactIds: z.array(z.string()).min(1, 'At least one contact is required'),
@@ -103,7 +104,58 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse scheduled time
-    const scheduledTime = new Date(validatedData.scheduledTime)
+    let batchStartTime = new Date(validatedData.scheduledTime)
+    const estimatedDurationMinutes = contacts.length * 2
+    const batchEndTime = new Date(batchStartTime.getTime() + (estimatedDurationMinutes * 60 * 1000))
+
+    // Check for conflicts with ANY existing calls
+    // We need a gap of 10 mins before and after the new batch.
+    // Conflict condition: Existing Call overlaps with [Start - 10m, End + 10m]
+    // Since a call is 2 mins long:
+    // ExistingCallStart < (BatchEnd + 10m) AND ExistingCallEnd > (BatchStart - 10m)
+    // ExistingCallStart < (BatchEnd + 10m) AND (ExistingCallStart + 2m) > (BatchStart - 10m)
+    // ExistingCallStart < (BatchEnd + 10m) AND ExistingCallStart > (BatchStart - 12m)
+    
+    const conflictCheckStart = new Date(batchStartTime.getTime() - (12 * 60 * 1000))
+    const conflictCheckEnd = new Date(batchEndTime.getTime() + (10 * 60 * 1000))
+
+    const conflictingCall = await prisma.scheduledCall.findFirst({
+      where: {
+        organizationId: session.user.organizationId,
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        scheduledTime: {
+          gt: conflictCheckStart,
+          lt: conflictCheckEnd
+        }
+      }
+    })
+
+    if (conflictingCall) {
+      console.log('Conflict detected with existing calls. Appending to the end of the queue.')
+      
+      // Find the very last scheduled call to append after
+      const lastScheduledCall = await prisma.scheduledCall.findFirst({
+        where: {
+          organizationId: session.user.organizationId,
+          status: { in: ['PENDING', 'IN_PROGRESS'] }
+        },
+        orderBy: {
+          scheduledTime: 'desc'
+        }
+      })
+
+      if (lastScheduledCall) {
+        // Calculate new start time: Last call time + 2 mins (duration est) + 10 mins (buffer)
+        const lastCallTime = new Date(lastScheduledCall.scheduledTime)
+        batchStartTime = new Date(lastCallTime.getTime() + (12 * 60 * 1000)) // 12 minutes in ms
+        console.log(`Adjusting batch start time to ${batchStartTime.toISOString()}`)
+      }
+    } else {
+        console.log('No conflict detected. Scheduling at requested time.')
+    }
+
+    // Generate a unique batch ID
+    const batchId = crypto.randomUUID()
 
     // Initialize QStash client
     const qstashClient = new Client({
@@ -117,11 +169,15 @@ export async function POST(req: NextRequest) {
     console.log('Scheduling calls with webhook URL:', webhookUrl)
 
     // Create scheduled calls for each contact
-    // Stagger calls by 2 minutes to ensure sequential execution
+    // We will only schedule the FIRST call with QStash.
+    // Subsequent calls will be triggered by the 'call_ended' webhook of the previous call.
     const scheduledCalls = await Promise.all(
       contacts.map(async (contact, index) => {
-        const callTime = new Date(scheduledTime)
-        callTime.setMinutes(callTime.getMinutes() + (index * 2)) // 2-minute intervals
+        // For the first call, use the calculated batch start time.
+        // For subsequent calls, we set a theoretical time, but they will be triggered sequentially.
+        // We keep the 2-minute stagger in DB just for ordering purposes.
+        const callTime = new Date(batchStartTime)
+        callTime.setMinutes(callTime.getMinutes() + (index * 2)) 
 
         const scheduledCall = await prisma.scheduledCall.create({
           data: {
@@ -131,7 +187,8 @@ export async function POST(req: NextRequest) {
             agentId: validatedData.agentId,
             scheduledTime: callTime,
             dynamicVariables: validatedData.dynamicVariables || undefined,
-            status: 'PENDING'
+            status: 'PENDING',
+            batchId: batchId
           },
           include: {
             contact: {
@@ -146,19 +203,20 @@ export async function POST(req: NextRequest) {
           }
         })
 
-        // Schedule with QStash
-        try {
-          const notBefore = Math.floor(callTime.getTime() / 1000)
-          console.log(`Publishing to QStash: ${webhookUrl}, scheduledCallId: ${scheduledCall.id}, notBefore: ${notBefore}`)
-          
-          await qstashClient.publishJSON({
-            url: webhookUrl,
-            body: { scheduledCallId: scheduledCall.id },
-            notBefore: notBefore,
-          })
-        } catch (qstashError) {
-          console.error('Failed to schedule with QStash:', qstashError)
-          // Optionally update status to FAILED or log error
+        // Only schedule the FIRST call with QStash
+        if (index === 0) {
+            try {
+            const notBefore = Math.floor(callTime.getTime() / 1000)
+            console.log(`Publishing FIRST call of batch ${batchId} to QStash: ${webhookUrl}, scheduledCallId: ${scheduledCall.id}, notBefore: ${notBefore}`)
+            
+            await qstashClient.publishJSON({
+                url: webhookUrl,
+                body: { scheduledCallId: scheduledCall.id },
+                notBefore: notBefore,
+            })
+            } catch (qstashError) {
+            console.error('Failed to schedule with QStash:', qstashError)
+            }
         }
 
         return scheduledCall

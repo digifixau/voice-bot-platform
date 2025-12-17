@@ -180,6 +180,7 @@ model ScheduledCall {
   organizationId String
   fromNumber     String              // Number to call from
   agentId        String              // Agent ID to use for the call
+  batchId        String?             // ID to group calls in a batch
   scheduledTime  DateTime            // When to place the call
   status         ScheduledCallStatus @default(PENDING)
   retellCallId   String?             // ID from Retell once call is placed
