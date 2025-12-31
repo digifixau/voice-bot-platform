@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
+import { prisma } from '@/lib/prisma'
 import { openai } from '@/lib/openai'
 import { z } from 'zod'
 
@@ -89,9 +90,6 @@ Example format:
 
 Do not include any markdown formatting, explanation, or additional text - only the JSON object.`
     }
-
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({

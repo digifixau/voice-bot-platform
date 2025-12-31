@@ -3,17 +3,52 @@
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+
+interface DashboardStats {
+  totalCalls: number
+  inboundCalls: number
+  outboundCalls: number
+  sentiment: { name: string; value: number }[]
+  agentsConnected: number
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [dateRange, setDateRange] = useState('today')
+  const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
     }
   }, [status, router])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchStats()
+    }
+  }, [status, dateRange])
+
+  const fetchStats = async () => {
+    setLoadingStats(true)
+    try {
+      const res = await fetch(`/api/dashboard/stats?range=${dateRange}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
 
   if (status === 'loading') {
     return (
@@ -58,12 +93,6 @@ export default function DashboardPage() {
                 >
                   Calls
                 </Link>
-                <Link
-                  href="/reports"
-                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  Reports
-                </Link>
                 {session.user.role === 'ADMIN' && (
                   <Link
                     href="/admin"
@@ -105,34 +134,24 @@ export default function DashboardPage() {
         <main>
           <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div className="px-4 py-8 sm:px-0">
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
-                            Total Contacts
-                          </dt>
-                          <dd className="text-lg font-medium text-gray-900">-</dd>
-                        </dl>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <Link href="/contacts" className="font-medium text-indigo-600 hover:text-indigo-500">
-                        View all
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+              {/* Date Range Filter */}
+              <div className="mb-6 flex justify-end">
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="mt-1 block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="all">All Time</option>
+                </select>
+              </div>
 
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                {/* Total Calls */}
                 <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
@@ -143,70 +162,134 @@ export default function DashboardPage() {
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
-                            Total Calls
-                          </dt>
-                          <dd className="text-lg font-medium text-gray-900">-</dd>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Total Calls</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {loadingStats ? '...' : stats?.totalCalls || 0}
+                          </dd>
                         </dl>
                       </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <Link href="/calls" className="font-medium text-indigo-600 hover:text-indigo-500">
-                        View all
-                      </Link>
                     </div>
                   </div>
                 </div>
 
+                {/* Inbound Calls */}
                 <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        <svg className="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                         </svg>
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
-                            Success Rate
-                          </dt>
-                          <dd className="text-lg font-medium text-gray-900">-</dd>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Inbound Calls</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {loadingStats ? '...' : stats?.inboundCalls || 0}
+                          </dd>
                         </dl>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <Link href="/reports" className="font-medium text-indigo-600 hover:text-indigo-500">
-                        View reports
-                      </Link>
+                </div>
+
+                {/* Outbound Calls */}
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg className="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Outbound Calls</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {loadingStats ? '...' : stats?.outboundCalls || 0}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Agents Connected */}
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg className="h-6 w-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Agents Connected</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {loadingStats ? '...' : stats?.agentsConnected || 0}
+                          </dd>
+                        </dl>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-8">
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                {/* Sentiment Chart */}
                 <div className="bg-white shadow rounded-lg p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Quick Actions
-                  </h3>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Link
-                      href="/contacts?action=new"
-                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      Add New Contact
-                    </Link>
-                    <Link
-                      href="/calls?action=initiate"
-                      className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      Initiate Call
-                    </Link>
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Call Sentiment</h3>
+                  <div className="h-64 w-full">
+                    {loadingStats ? (
+                      <div className="h-full flex items-center justify-center text-gray-400">Loading...</div>
+                    ) : stats?.sentiment && stats.sentiment.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.sentiment}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {stats.sentiment.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-gray-400">No sentiment data available</div>
+                    )}
                   </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Link
+                    href="/contacts?action=new"
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Add New Contact
+                  </Link>
+                  <Link
+                    href="/calls?action=initiate"
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Initiate Call
+                  </Link>
                 </div>
               </div>
             </div>
