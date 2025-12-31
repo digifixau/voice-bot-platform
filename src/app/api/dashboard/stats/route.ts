@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
         endDate = endOfDay(now)
         break
       case 'month':
-        startDate = startOfMonth(now)
-        endDate = endOfMonth(now)
+        startDate = subDays(now, 30)
+        endDate = endOfDay(now)
         break
       case 'all':
         startDate = new Date(0) // Beginning of time

@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [dateRange, setDateRange] = useState('today')
+  const [dateRange, setDateRange] = useState('month')
   const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
@@ -144,7 +144,7 @@ export default function DashboardPage() {
                   <option value="today">Today</option>
                   <option value="yesterday">Yesterday</option>
                   <option value="week">This Week</option>
-                  <option value="month">This Month</option>
+                  <option value="month">Last 30 Days</option>
                   <option value="all">All Time</option>
                 </select>
               </div>
