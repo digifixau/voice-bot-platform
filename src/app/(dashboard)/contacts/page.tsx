@@ -21,6 +21,38 @@ interface Contact {
   }
 }
 
+function ContactCustomFields({ customFields }: { customFields?: Record<string, string> }) {
+  const [expanded, setExpanded] = useState(false)
+  
+  if (!customFields || Object.keys(customFields).length === 0) return null
+
+  return (
+    <div className="mt-2">
+      <div className="sm:hidden">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation()
+            setExpanded(!expanded)
+          }}
+          className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center focus:outline-none"
+        >
+          {expanded ? 'Hide details' : 'Show details'}
+          <svg className={`ml-1 h-3 w-3 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      <div className={`flex-wrap gap-2 ${expanded ? 'flex mt-2' : 'hidden sm:flex sm:mt-2'}`}>
+        {Object.entries(customFields).map(([key, value]) => (
+          <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mb-1 mr-1">
+            {key}: {value}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function ContactsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -586,15 +618,7 @@ export default function ContactsPage() {
                                   )}
                                 </div>
                               </div>
-                              {contact.customFields && Object.keys(contact.customFields).length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {Object.entries(contact.customFields).map(([key, value]) => (
-                                    <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                      {key}: {value}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                              <ContactCustomFields customFields={contact.customFields} />
                               {contact.notes && (
                                 <p className="mt-2 text-sm text-gray-500 line-clamp-2">
                                   {contact.notes}
