@@ -58,13 +58,31 @@ export async function POST(
 
     const retellData = await retellResponse.json()
 
+    // Determine call status
+    let callStatus: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'NO_ANSWER' = 'COMPLETED'
+    const disconnectionReason = retellData.disconnection_reason;
+    const status = retellData.call_status || retellData.status; // Handle potential field name variations
+
+    if (status === 'failed') {
+      callStatus = 'FAILED'
+    } else if (status === 'ended') {
+      if (disconnectionReason === 'dial_no_answer' || disconnectionReason === 'dial_busy') {
+        callStatus = 'NO_ANSWER';
+      } else if (disconnectionReason === 'dial_failed' || disconnectionReason?.startsWith('error_')) {
+        callStatus = 'FAILED';
+      } else {
+        callStatus = 'COMPLETED';
+      }
+    } else if (status === 'in_progress' || status === 'ongoing') {
+      callStatus = 'IN_PROGRESS'
+    }
+
     // Update call record
     await prisma.call.update({
       where: { id: call.id },
       data: {
-        status: retellData.status === 'ended' ? 'COMPLETED' : 
-                retellData.status === 'failed' ? 'FAILED' : 
-                'IN_PROGRESS',
+        status: callStatus,
+        disconnectionReason: disconnectionReason,
         duration: retellData.duration_ms ? Math.floor(retellData.duration_ms / 1000) : null,
         startedAt: retellData.start_timestamp ? new Date(retellData.start_timestamp) : null,
         endedAt: retellData.end_timestamp ? new Date(retellData.end_timestamp) : null,
@@ -78,19 +96,25 @@ export async function POST(
         create: {
           callId: call.id,
           transcript: retellData.transcript || null,
-          summary: retellData.call_analysis?.summary || null,
-          sentiment: retellData.call_analysis?.sentiment || null,
+          summary: retellData.call_analysis?.call_summary || retellData.call_analysis?.summary || null,
+          sentiment: retellData.call_analysis?.user_sentiment || retellData.call_analysis?.sentiment || null,
           keyPoints: retellData.call_analysis?.key_points || [],
           actionItems: retellData.call_analysis?.action_items || [],
-          metadata: retellData.call_analysis || null,
+          metadata: {
+            ...(retellData.call_analysis || {}),
+            disconnection_reason: disconnectionReason
+          },
         },
         update: {
           transcript: retellData.transcript || null,
-          summary: retellData.call_analysis?.summary || null,
-          sentiment: retellData.call_analysis?.sentiment || null,
+          summary: retellData.call_analysis?.call_summary || retellData.call_analysis?.summary || null,
+          sentiment: retellData.call_analysis?.user_sentiment || retellData.call_analysis?.sentiment || null,
           keyPoints: retellData.call_analysis?.key_points || [],
           actionItems: retellData.call_analysis?.action_items || [],
-          metadata: retellData.call_analysis || null,
+          metadata: {
+            ...(retellData.call_analysis || {}),
+            disconnection_reason: disconnectionReason
+          },
         }
       })
     }

@@ -134,10 +134,19 @@ export async function POST(req: NextRequest) {
 
     // Map call status
     let callStatus: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'NO_ANSWER' = 'COMPLETED'
-    if (call.call_status === 'ended') {
-      callStatus = 'COMPLETED'
-    } else if (call.call_status === 'failed') {
+    
+    const disconnectionReason = call.disconnection_reason;
+
+    if (call.call_status === 'failed') {
       callStatus = 'FAILED'
+    } else if (call.call_status === 'ended') {
+      if (disconnectionReason === 'dial_no_answer' || disconnectionReason === 'dial_busy') {
+        callStatus = 'NO_ANSWER';
+      } else if (disconnectionReason === 'dial_failed' || disconnectionReason?.startsWith('error_')) {
+        callStatus = 'FAILED';
+      } else {
+        callStatus = 'COMPLETED';
+      }
     } else if (call.call_status === 'in_progress') {
       callStatus = 'IN_PROGRESS'
     }
@@ -206,13 +215,19 @@ export async function POST(req: NextRequest) {
           sentiment: call.call_analysis?.user_sentiment?.toLowerCase() || null,
           keyPoints: [], // Can be extracted from custom_analysis_data if needed
           actionItems: [], // Can be extracted from custom_analysis_data if needed
-          metadata: call.call_analysis ? (call.call_analysis as any) : null,
+          metadata: {
+            ...(call.call_analysis as any),
+            disconnection_reason: call.disconnection_reason
+          },
         },
         update: {
           transcript: call.transcript || null,
           summary: call.call_analysis?.call_summary || null,
           sentiment: call.call_analysis?.user_sentiment?.toLowerCase() || null,
-          metadata: call.call_analysis ? (call.call_analysis as any) : null,
+          metadata: {
+            ...(call.call_analysis as any),
+            disconnection_reason: call.disconnection_reason
+          },
         },
       })
 

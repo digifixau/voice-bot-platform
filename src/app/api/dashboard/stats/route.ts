@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
       inboundCalls,
       outboundCalls,
       sentimentData,
-      agentsConnected
+      agentsConnected,
+      disconnectionReasonData
     ] = await Promise.all([
       // Total Calls
       prisma.call.count({
@@ -109,6 +110,23 @@ export async function GET(req: NextRequest) {
         where: {
           organizationId: orgId
         }
+      }),
+      // Disconnection Reason Analysis
+      prisma.call.groupBy({
+        by: ['disconnectionReason'],
+        where: {
+          organizationId: orgId,
+          createdAt: {
+            gte: startDate,
+            lte: endDate
+          },
+          disconnectionReason: {
+            not: null
+          }
+        },
+        _count: {
+          disconnectionReason: true
+        }
       })
     ])
 
@@ -118,12 +136,19 @@ export async function GET(req: NextRequest) {
       value: item._count.sentiment
     }))
 
+    // Format disconnection reason data for frontend
+    const disconnectionReasons = disconnectionReasonData.map(item => ({
+      name: item.disconnectionReason || 'Unknown',
+      value: item._count.disconnectionReason
+    }))
+
     return NextResponse.json({
       totalCalls,
       inboundCalls,
       outboundCalls,
       sentiment,
-      agentsConnected
+      agentsConnected,
+      disconnectionReasons
     })
 
   } catch (error) {

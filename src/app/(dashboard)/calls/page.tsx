@@ -275,7 +275,7 @@ export default function CallsPage() {
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                           filter === status
                             ? 'bg-indigo-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                            : 'bg-white text-gray-900 hover:bg-gray-50 border border-gray-300'
                         }`}
                       >
                         {status === 'all' ? 'All Calls' : status.replace('_', ' ')}
@@ -304,7 +304,7 @@ export default function CallsPage() {
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                           dateFilter === option.value
                             ? 'bg-indigo-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                            : 'bg-white text-gray-900 hover:bg-gray-50 border border-gray-300'
                         }`}
                       >
                         {option.label}

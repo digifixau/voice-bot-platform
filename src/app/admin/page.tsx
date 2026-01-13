@@ -674,7 +674,7 @@ export default function AdminPage() {
                     required
                     value={orgForm.name}
                     onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter organization name"
                   />
                 </div>
@@ -685,7 +685,7 @@ export default function AdminPage() {
                   <textarea
                     value={orgForm.description}
                     onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter description (optional)"
                     rows={3}
                   />
@@ -708,7 +708,7 @@ export default function AdminPage() {
                               newFields[index].key = e.target.value
                               setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
                             }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
                           />
                           <input
                             type="text"
@@ -719,7 +719,7 @@ export default function AdminPage() {
                               newFields[index].label = e.target.value
                               setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
                             }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
                           />
                           <input
                             type="text"
@@ -730,7 +730,7 @@ export default function AdminPage() {
                               newFields[index].description = e.target.value
                               setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
                             }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
                           />
                         </div>
                         <button
@@ -807,7 +807,7 @@ export default function AdminPage() {
                     required
                     value={userForm.name}
                     onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter full name"
                   />
                 </div>
@@ -820,7 +820,7 @@ export default function AdminPage() {
                     required
                     value={userForm.email}
                     onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter email address"
                   />
                 </div>
@@ -833,7 +833,7 @@ export default function AdminPage() {
                     required
                     value={userForm.password}
                     onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter password"
                   />
                 </div>
@@ -845,14 +845,15 @@ export default function AdminPage() {
                     required
                     value={userForm.role}
                     onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                   >
                     <option value="ORG_USER">Organization User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ORG_ADMIN">Organization Admin</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
                 </div>
-                {userForm.role === 'ORG_USER' && (
-                  <div className="mb-4">
+                {userForm.role !== 'SUPER_ADMIN' && (
+                  <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Organization *
                     </label>
@@ -860,7 +861,7 @@ export default function AdminPage() {
                       required
                       value={userForm.organizationId}
                       onChange={(e) => setUserForm({ ...userForm, organizationId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     >
                       <option value="">Select an organization</option>
                       {organizations.map((org) => (
@@ -914,7 +915,7 @@ export default function AdminPage() {
                     required
                     value={agentForm.retellAgentId}
                     onChange={(e) => setAgentForm({ ...agentForm, retellAgentId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter Retell AI agent ID"
                     disabled={!!editingAgent}
                   />
@@ -933,7 +934,7 @@ export default function AdminPage() {
                     required
                     value={agentForm.name}
                     onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                     placeholder="Enter agent name"
                   />
                 </div>
@@ -945,7 +946,7 @@ export default function AdminPage() {
                     required
                     value={agentForm.organizationId}
                     onChange={(e) => setAgentForm({ ...agentForm, organizationId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
                   >
                     <option value="">Select an organization</option>
                     {organizations.map((org) => (

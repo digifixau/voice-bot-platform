@@ -12,6 +12,7 @@ interface DashboardStats {
   outboundCalls: number
   sentiment: { name: string; value: number }[]
   agentsConnected: number
+  disconnectionReasons: { name: string; value: number }[]
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
@@ -214,7 +215,7 @@ export default function DashboardPage() {
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="mt-1 block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  className="mt-1 block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white text-gray-900"
                 >
                   <option value="today">Today</option>
                   <option value="yesterday">Yesterday</option>
@@ -342,6 +343,39 @@ export default function DashboardPage() {
                       </ResponsiveContainer>
                     ) : (
                       <div className="h-full flex items-center justify-center text-gray-400">No sentiment data available</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Disconnection Reason Chart */}
+                <div className="bg-white shadow rounded-lg p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Disconnection Reasons</h3>
+                  <div className="h-64 w-full">
+                    {loadingStats ? (
+                      <div className="h-full flex items-center justify-center text-gray-400">Loading...</div>
+                    ) : stats?.disconnectionReasons && stats.disconnectionReasons.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.disconnectionReasons}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#82ca9d"
+                            dataKey="value"
+                          >
+                            {stats.disconnectionReasons.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-gray-400">No data available</div>
                     )}
                   </div>
                 </div>

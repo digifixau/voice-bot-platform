@@ -328,6 +328,13 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                     )}
                   </div>
                 </div>
+
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="text-sm font-medium text-gray-500 mb-1">Disconnection Reason</div>
+                  <div className="text-gray-900 font-medium capitalize">
+                    {call.disconnectionReason ? call.disconnectionReason.replace(/_/g, ' ') : 'N/A'}
+                  </div>
+                </div>
               </div>
 
               {/* Phone Numbers Info */}

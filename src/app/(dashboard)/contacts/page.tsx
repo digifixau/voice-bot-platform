@@ -477,7 +477,7 @@ export default function ContactsPage() {
                   placeholder="Search contacts by name, phone, or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
 
@@ -692,7 +692,7 @@ export default function ContactsPage() {
                           onChange={(e) =>
                             setContactForm({ ...contactForm, name: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                           placeholder="Enter contact name"
                         />
                       </div>
@@ -707,7 +707,7 @@ export default function ContactsPage() {
                           onChange={(e) =>
                             setContactForm({ ...contactForm, phoneNumber: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                           placeholder="+1234567890"
                         />
                       </div>
@@ -722,7 +722,7 @@ export default function ContactsPage() {
                         onChange={(e) =>
                           setContactForm({ ...contactForm, email: e.target.value })
                         }
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                         placeholder="contact@example.com"
                       />
                     </div>
@@ -742,7 +742,7 @@ export default function ContactsPage() {
                           onChange={(e) =>
                             setContactForm({ ...contactForm, businessName: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                           placeholder="Company name"
                         />
                       </div>
@@ -756,7 +756,7 @@ export default function ContactsPage() {
                           onChange={(e) =>
                             setContactForm({ ...contactForm, businessWebsite: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                           placeholder="https://example.com"
                         />
                       </div>
@@ -773,7 +773,7 @@ export default function ContactsPage() {
                       onChange={(e) =>
                         setContactForm({ ...contactForm, notes: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
                       placeholder="Add any notes about this contact..."
                       rows={3}
                     />
@@ -842,7 +842,7 @@ export default function ContactsPage() {
                               newFields[index].key = e.target.value
                               setContactForm({ ...contactForm, customFields: newFields })
                             }}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
                             placeholder="Field name"
                           />
                         </div>
@@ -855,7 +855,7 @@ export default function ContactsPage() {
                               newFields[index].value = e.target.value
                               setContactForm({ ...contactForm, customFields: newFields })
                             }}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm text-gray-900"
                             placeholder="Value"
                           />
                         </div>
@@ -945,7 +945,7 @@ export default function ContactsPage() {
                       type="tel"
                       value={callConfig.fromNumber}
                       onChange={(e) => setCallConfig({ ...callConfig, fromNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
                       placeholder="+61480038722"
                     />
                   </div>
@@ -957,7 +957,7 @@ export default function ContactsPage() {
                       type="text"
                       value={callConfig.agentId}
                       onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
                       placeholder="agent_xxxxx"
                     />
                   </div>
@@ -1003,11 +1003,11 @@ export default function ContactsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Selected Contacts:
                     </label>
-                    <div className="max-h-32 overflow-y-auto bg-gray-50 rounded-md p-2">
+                    <div className="max-h-32 overflow-y-auto bg-white rounded-md p-2 border border-gray-300">
                       {contacts
                         .filter(c => selectedContacts.has(c.id))
                         .map(c => (
-                          <div key={c.id} className="text-sm text-gray-600 py-1">
+                          <div key={c.id} className="text-sm text-gray-900 py-1 font-medium">
                             {c.name} - {c.phoneNumber}
                           </div>
                         ))}
@@ -1028,7 +1028,7 @@ export default function ContactsPage() {
                           checked={scheduleMode === 'now'}
                           onChange={() => setScheduleMode('now')}
                         />
-                        <span className="ml-2 text-sm text-gray-700">Start Immediately</span>
+                        <span className="ml-2 text-sm text-gray-900 font-medium">Start Immediately</span>
                       </label>
                       <label className="inline-flex items-center cursor-pointer">
                         <input
@@ -1039,7 +1039,7 @@ export default function ContactsPage() {
                           checked={scheduleMode === 'later'}
                           onChange={() => setScheduleMode('later')}
                         />
-                        <span className="ml-2 text-sm text-gray-700">Schedule for Later</span>
+                        <span className="ml-2 text-sm text-gray-900 font-medium">Schedule for Later</span>
                       </label>
                     </div>
                     
@@ -1049,7 +1049,7 @@ export default function ContactsPage() {
                         value={scheduleTime}
                         onChange={(e) => setScheduleTime(e.target.value)}
                         min={new Date().toLocaleString('sv').slice(0, 16)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 mb-2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 mb-2 text-gray-900 bg-white"
                       />
                     )}
                     
@@ -1068,7 +1068,7 @@ export default function ContactsPage() {
                       type="tel"
                       value={callConfig.fromNumber}
                       onChange={(e) => setCallConfig({ ...callConfig, fromNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
                       placeholder="+61480038722"
                     />
                   </div>
@@ -1080,7 +1080,7 @@ export default function ContactsPage() {
                       type="text"
                       value={callConfig.agentId}
                       onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
                       placeholder="agent_xxxxx"
                     />
                   </div>
