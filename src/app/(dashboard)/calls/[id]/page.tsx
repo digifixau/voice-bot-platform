@@ -285,7 +285,7 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                   disabled={syncing}
                   className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {syncing ? 'Syncing...' : 'Sync from Retell AI'}
+                  {syncing ? 'Syncing...' : 'Sync call details'}
                 </button>
               )}
             </div>

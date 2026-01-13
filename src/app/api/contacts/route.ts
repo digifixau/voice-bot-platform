@@ -39,12 +39,27 @@ export async function GET(req: NextRequest) {
 
     const organization = await prisma.organization.findUnique({
       where: { id: session.user.organizationId },
-      select: { customFieldDefinitions: true }
+      select: { 
+        customFieldDefinitions: true,
+        defaultFromNumber: true,
+        agents: {
+          select: {
+            id: true,
+            name: true,
+            retellAgentId: true // We might need this to initiate calls
+          },
+          orderBy: {
+            name: 'asc'
+          }
+        }
+      }
     })
 
     return NextResponse.json({ 
       contacts, 
-      customFieldDefinitions: organization?.customFieldDefinitions 
+      customFieldDefinitions: organization?.customFieldDefinitions,
+      defaultFromNumber: organization?.defaultFromNumber,
+      agents: organization?.agents || []
     })
   } catch (error) {
     console.error('Error fetching contacts:', error)

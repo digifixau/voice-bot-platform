@@ -21,6 +21,12 @@ interface Contact {
   }
 }
 
+interface Agent {
+  id: string
+  name: string
+  retellAgentId: string
+}
+
 function ContactCustomFields({ customFields }: { customFields?: Record<string, string> }) {
   const [expanded, setExpanded] = useState(false)
   
@@ -80,7 +86,8 @@ export default function ContactsPage() {
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now')
   const [orgCustomFields, setOrgCustomFields] = useState<{ key: string, label: string }[]>([])
-
+  const [orgAgents, setOrgAgents] = useState<Agent[]>([])
+  
   const [contactForm, setContactForm] = useState({
     name: '',
     phoneNumber: '',
@@ -111,6 +118,22 @@ export default function ContactsPage() {
       setContacts(data.contacts || [])
       if (data.customFieldDefinitions && Array.isArray(data.customFieldDefinitions)) {
         setOrgCustomFields(data.customFieldDefinitions)
+      }
+      if (data.agents && Array.isArray(data.agents)) {
+        setOrgAgents(data.agents)
+        // Set default agent if available and not set
+        if (data.agents.length > 0 && !callConfig.agentId) {
+          setCallConfig(prev => ({ ...prev, agentId: data.agents[0].retellAgentId }))
+        } else if (data.agents.length > 0) {
+           // Ensure current agentId is valid, else fallback
+           const exists = data.agents.find((a: Agent) => a.retellAgentId === callConfig.agentId)
+           if (!exists) {
+              setCallConfig(prev => ({ ...prev, agentId: data.agents[0].retellAgentId }))
+           }
+        }
+      }
+      if (data.defaultFromNumber) {
+        setCallConfig(prev => ({ ...prev, fromNumber: data.defaultFromNumber }))
       }
     } catch (error) {
       console.error('Error fetching contacts:', error)
@@ -955,15 +978,29 @@ export default function ContactsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Agent ID
+                      Agent
                     </label>
-                    <input
-                      type="text"
-                      value={callConfig.agentId}
-                      onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
-                      placeholder="agent_xxxxx"
-                    />
+                    {orgAgents.length > 0 ? (
+                      <select
+                        value={callConfig.agentId}
+                        onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                      >
+                        {orgAgents.map(agent => (
+                          <option key={agent.id} value={agent.retellAgentId}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={callConfig.agentId}
+                        onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                        placeholder="agent_xxxxx"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1078,15 +1115,29 @@ export default function ContactsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Agent ID
+                      Agent
                     </label>
-                    <input
-                      type="text"
-                      value={callConfig.agentId}
-                      onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
-                      placeholder="agent_xxxxx"
-                    />
+                    {orgAgents.length > 0 ? (
+                      <select
+                        value={callConfig.agentId}
+                        onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                      >
+                         {orgAgents.map(agent => (
+                          <option key={agent.id} value={agent.retellAgentId}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={callConfig.agentId}
+                        onChange={(e) => setCallConfig({ ...callConfig, agentId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                        placeholder="agent_xxxxx"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

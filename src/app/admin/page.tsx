@@ -9,6 +9,7 @@ interface Organization {
   id: string
   name: string
   description?: string
+  defaultFromNumber?: string | null
   customFieldDefinitions?: any[]
   createdAt: string
   _count: {
@@ -65,6 +66,7 @@ export default function AdminPage() {
   const [orgForm, setOrgForm] = useState({
     name: '',
     description: '',
+    defaultFromNumber: '',
     customFieldDefinitions: [] as { key: string; label: string; description: string }[]
   })
   
@@ -135,7 +137,7 @@ export default function AdminPage() {
       
       if (response.ok) {
         setShowOrgModal(false)
-        setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+        setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
         setEditingOrg(null)
         fetchData()
       } else {
@@ -255,7 +257,7 @@ export default function AdminPage() {
       if (response.ok) {
         setShowOrgModal(false)
         setEditingOrg(null)
-        setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+        setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
         fetchData()
       } else {
         const data = await response.json()
@@ -369,11 +371,12 @@ export default function AdminPage() {
       setOrgForm({
         name: org.name,
         description: org.description || '',
-        customFieldDefinitions: (org.customFieldDefinitions as any[]) || []
+        defaultFromNumber: org.defaultFromNumber || '',
+        customFieldDefinitions: org.customFieldDefinitions || []
       })
     } else {
       setEditingOrg(null)
-      setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+      setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
     }
     setShowOrgModal(true)
   }
@@ -703,6 +706,18 @@ export default function AdminPage() {
                     rows={3}
                   />
                 </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default From Number
+                  </label>
+                  <input
+                    type="text"
+                    value={orgForm.defaultFromNumber}
+                    onChange={(e) => setOrgForm({ ...orgForm, defaultFromNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                    placeholder="Enter default from number"
+                  />
+                </div>
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -781,7 +796,7 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => {
                       setShowOrgModal(false)
-                      setOrgForm({ name: '', description: '', customFieldDefinitions: [] })
+                      setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
                       setEditingOrg(null)
                     }}
                     className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"

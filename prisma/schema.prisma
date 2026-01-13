@@ -30,6 +30,7 @@ model Organization {
   description String?
   n8nWebhookUrl String? // Webhook URL for initiating calls for this org
   retellApiKey  String? // Organization-specific Retell API key if needed
+  defaultFromNumber String? // Default phone number to make calls from
   customFieldDefinitions Json? // Schema for custom fields: [{ key: "first_offer", label: "First Offer" }]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

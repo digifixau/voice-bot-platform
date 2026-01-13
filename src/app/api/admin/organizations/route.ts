@@ -9,6 +9,7 @@ const createOrgSchema = z.object({
   description: z.string().optional(),
   n8nWebhookUrl: z.string().url().optional(),
   retellApiKey: z.string().optional(),
+  defaultFromNumber: z.string().optional(),
   customFieldDefinitions: z.array(z.object({
     key: z.string(),
     label: z.string(),
