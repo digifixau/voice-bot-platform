@@ -37,7 +37,15 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ contacts })
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId },
+      select: { customFieldDefinitions: true }
+    })
+
+    return NextResponse.json({ 
+      contacts, 
+      customFieldDefinitions: organization?.customFieldDefinitions 
+    })
   } catch (error) {
     console.error('Error fetching contacts:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

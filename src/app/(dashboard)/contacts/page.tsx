@@ -79,6 +79,7 @@ export default function ContactsPage() {
   const [scheduling, setScheduling] = useState(false)
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now')
+  const [orgCustomFields, setOrgCustomFields] = useState<{ key: string, label: string }[]>([])
 
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -108,6 +109,9 @@ export default function ContactsPage() {
       const res = await fetch('/api/contacts')
       const data = await res.json()
       setContacts(data.contacts || [])
+      if (data.customFieldDefinitions && Array.isArray(data.customFieldDefinitions)) {
+        setOrgCustomFields(data.customFieldDefinitions)
+      }
     } catch (error) {
       console.error('Error fetching contacts:', error)
     } finally {
@@ -140,7 +144,7 @@ export default function ContactsPage() {
         businessName: '', 
         businessWebsite: '', 
         notes: '',
-        customFields: []
+        customFields: orgCustomFields.map(field => ({ key: field.key, value: '' }))
       })
     }
     setShowModal(true)
