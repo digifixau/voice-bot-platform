@@ -486,7 +486,7 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                   <p className="text-yellow-800">
                     No summary or recording available yet. 
                     {call.retellCallId && (
-                      <span> Try syncing from Retell AI using the button above.</span>
+                      <span> Try syncing using the button above.</span>
                     )}
                   </p>
                 </div>
