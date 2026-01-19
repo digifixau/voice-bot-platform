@@ -354,12 +354,6 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                         <div className="text-lg text-gray-900">{call.fromNumber}</div>
                       </div>
                     )}
-                    {call.toNumber && (
-                      <div>
-                        <div className="text-sm font-medium text-gray-500 mb-1">To Number</div>
-                        <div className="text-lg text-gray-900">{call.toNumber}</div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
