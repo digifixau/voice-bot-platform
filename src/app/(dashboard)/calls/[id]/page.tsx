@@ -392,7 +392,7 @@ export default function CallDetailsPage({ params }: { params: Promise<{ id: stri
                   )}
                   {call.retellCallId && (
                     <div className="flex items-start">
-                      <div className="shrink-0 w-32 text-sm text-gray-500">Retell Call ID</div>
+                      <div className="shrink-0 w-32 text-sm text-gray-500">Call ID</div>
                       <div className="text-sm text-gray-900 font-mono">{call.retellCallId}</div>
                     </div>
                   )}

@@ -29,7 +29,7 @@ export default function RoadmapPage() {
       status: 'completed',
       date: 'Jan 2026',
       items: [
-        'Retell AI Integration',
+        'Call AI Integration',
         'Call Logs & History View',
         'Multi-Agent Support per Organization',
         'Organization-level Default Phone Numbers',

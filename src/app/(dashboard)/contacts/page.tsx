@@ -149,9 +149,16 @@ export default function ContactsPage() {
       const customFieldsArray = contact.customFields
         ? Object.entries(contact.customFields).map(([key, value]) => ({ key, value }))
         : []
+      
+      // Strip +61 for display if present
+      let displayPhone = contact.phoneNumber
+      if (displayPhone.startsWith('+61')) {
+          displayPhone = '0' + displayPhone.substring(3)
+      }
+
       setContactForm({
         name: contact.name,
-        phoneNumber: contact.phoneNumber,
+        phoneNumber: displayPhone,
         email: contact.email || '',
         businessName: contact.businessName || '',
         businessWebsite: contact.businessWebsite || '',
@@ -177,6 +184,28 @@ export default function ContactsPage() {
     e.preventDefault()
     setSubmitting(true)
 
+    // Validate phone number
+    // Remove all non-digit characters
+    const digits = contactForm.phoneNumber.replace(/\D/g, '')
+    
+    // Australian numbers:
+    // Mobile: 04XXXXXXXX (10 digits) -> +614XXXXXXXX
+    // Landline: 02/03/07/08 XXXXXXXX (10 digits) -> +612XXXXXXXX
+    // Or if user enters 4XXXXXXXX (9 digits) -> +614XXXXXXXX
+    
+    let formattedNumber = ''
+    if (digits.length === 9) {
+       // Assume it's a mobile/landline without the leading 0
+       formattedNumber = `+61${digits}`
+    } else if (digits.length === 10 && digits.startsWith('0')) {
+       // Standard AU number with 0 prefix
+       formattedNumber = `+61${digits.substring(1)}`
+    } else {
+       alert('Invalid Australian phone number. Please enter a valid 9 or 10 digit number (e.g., 0412 345 678 or 412 345 678).')
+       setSubmitting(false)
+       return
+    }
+
     try {
       const url = editingContact
         ? `/api/contacts/${editingContact.id}`
@@ -193,7 +222,7 @@ export default function ContactsPage() {
 
       const payload = {
         name: contactForm.name,
-        phoneNumber: contactForm.phoneNumber,
+        phoneNumber: formattedNumber,
         email: contactForm.email,
         businessName: contactForm.businessName,
         businessWebsite: contactForm.businessWebsite,
@@ -727,16 +756,26 @@ export default function ContactsPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Phone Number <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="tel"
-                          required
-                          value={contactForm.phoneNumber}
-                          onChange={(e) =>
-                            setContactForm({ ...contactForm, phoneNumber: e.target.value })
-                          }
-                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900"
-                          placeholder="+1234567890"
-                        />
+                        <div className="flex">
+                          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                            🇦🇺 +61
+                          </span>
+                          <input
+                            type="tel"
+                            required
+                            value={contactForm.phoneNumber}
+                            onChange={(e) => {
+                              // Only allow digits and spaces
+                              const val = e.target.value.replace(/[^\d\s]/g, '')
+                              setContactForm({ ...contactForm, phoneNumber: val })
+                            }}
+                            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                            placeholder="412 345 678"
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                           Enter number without country code (e.g., 412 345 678). AU only (+61).
+                        </p>
                       </div>
                     </div>
                     <div className="mt-4">
