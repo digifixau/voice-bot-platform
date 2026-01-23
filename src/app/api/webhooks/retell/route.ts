@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { Client } from '@upstash/qstash'
+import { sendCallNotificationEmail } from '@/lib/email'
 
 // Retell AI webhook payload schema
 const retellWebhookSchema = z.object({
@@ -251,6 +252,41 @@ export async function POST(req: NextRequest) {
       })
 
       console.log('Call recording created/updated:', recording.id)
+    }
+
+    // Send email notification for the completed call
+    try {
+      // Fetch contact name if available
+      let contactName: string | undefined
+      if (callRecord.contactId) {
+        const contact = await prisma.contact.findUnique({
+          where: { id: callRecord.contactId },
+          select: { name: true }
+        })
+        contactName = contact?.name
+      }
+
+      await sendCallNotificationEmail(agent.organizationId, {
+        callId: callRecord.id,
+        retellCallId: call.call_id,
+        direction: direction || 'unknown',
+        status: callStatus,
+        duration: durationSeconds,
+        fromNumber: call.from_number,
+        toNumber: call.to_number,
+        clientPhoneNumber: clientPhoneNumber,
+        contactName,
+        agentName: agent.name,
+        transcript: call.transcript,
+        summary: call.call_analysis?.call_summary,
+        sentiment: call.call_analysis?.user_sentiment,
+        recordingUrl: call.recording_url,
+        startedAt: call.start_timestamp ? new Date(call.start_timestamp) : undefined,
+        endedAt: call.end_timestamp ? new Date(call.end_timestamp) : undefined,
+      })
+    } catch (emailError) {
+      // Don't fail the webhook if email fails
+      console.error('Error sending call notification email:', emailError)
     }
 
     // Trigger the next scheduled call (Daisy-chaining)

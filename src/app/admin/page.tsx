@@ -19,6 +19,20 @@ interface Organization {
   }
 }
 
+interface EmailSettings {
+  id?: string
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  smtpUser: string
+  smtpPassword: string
+  fromEmail: string
+  fromName: string
+  toEmails: string[]
+  notificationTrigger: 'INBOUND_ONLY' | 'OUTBOUND_ONLY' | 'BOTH'
+  isEnabled: boolean
+}
+
 interface User {
   id: string
   email: string
@@ -61,6 +75,8 @@ export default function AdminPage() {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
+  const [emailSettingsTab, setEmailSettingsTab] = useState<'basic' | 'email'>('basic')
   
   // Organization form state
   const [orgForm, setOrgForm] = useState({
@@ -69,6 +85,22 @@ export default function AdminPage() {
     defaultFromNumber: '',
     customFieldDefinitions: [] as { key: string; label: string; description: string }[]
   })
+
+  // Email settings form state
+  const [emailForm, setEmailForm] = useState<EmailSettings>({
+    smtpHost: '',
+    smtpPort: 587,
+    smtpSecure: false,
+    smtpUser: '',
+    smtpPassword: '',
+    fromEmail: '',
+    fromName: '',
+    toEmails: [],
+    notificationTrigger: 'BOTH',
+    isEnabled: true
+  })
+  const [toEmailInput, setToEmailInput] = useState('')
+  const [hasEmailSettings, setHasEmailSettings] = useState(false)
   
   // User form state
   const [userForm, setUserForm] = useState({
@@ -374,11 +406,149 @@ export default function AdminPage() {
         defaultFromNumber: org.defaultFromNumber || '',
         customFieldDefinitions: org.customFieldDefinitions || []
       })
+      // Fetch email settings for this org
+      fetchEmailSettings(org.id)
     } else {
       setEditingOrg(null)
       setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
+      resetEmailForm()
     }
+    setEmailSettingsTab('basic')
     setShowOrgModal(true)
+  }
+
+  const resetEmailForm = () => {
+    setEmailForm({
+      smtpHost: '',
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: '',
+      smtpPassword: '',
+      fromEmail: '',
+      fromName: '',
+      toEmails: [],
+      notificationTrigger: 'BOTH',
+      isEnabled: true
+    })
+    setToEmailInput('')
+    setHasEmailSettings(false)
+  }
+
+  const fetchEmailSettings = async (orgId: string) => {
+    try {
+      const response = await fetch(`/api/admin/organizations/${orgId}/email-settings`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.emailSettings) {
+          setEmailForm({
+            ...data.emailSettings,
+            smtpPassword: data.emailSettings.smtpPassword || ''
+          })
+          setHasEmailSettings(true)
+        } else {
+          resetEmailForm()
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching email settings:', error)
+      resetEmailForm()
+    }
+  }
+
+  const handleSaveEmailSettings = async () => {
+    if (!editingOrg) return
+    
+    setSubmitting(true)
+    try {
+      const method = hasEmailSettings ? 'PATCH' : 'POST'
+      const response = await fetch(`/api/admin/organizations/${editingOrg.id}/email-settings`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailForm)
+      })
+
+      if (response.ok) {
+        alert('Email settings saved successfully')
+        setHasEmailSettings(true)
+      } else {
+        const data = await response.json()
+        let errorMessage = data.error || 'Failed to save email settings'
+        if (Array.isArray(errorMessage)) {
+          errorMessage = errorMessage.map((e: any) => e.message).join(', ')
+        }
+        alert(`Error: ${errorMessage}`)
+      }
+    } catch (error) {
+      console.error('Error saving email settings:', error)
+      alert('Failed to save email settings')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    if (!editingOrg) return
+    
+    const testEmail = prompt('Enter email address to send test email:')
+    if (!testEmail) return
+
+    setTestingEmail(true)
+    try {
+      const response = await fetch(`/api/admin/organizations/${editingOrg.id}/email-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', toEmail: testEmail })
+      })
+
+      if (response.ok) {
+        alert('Test email sent successfully!')
+      } else {
+        const data = await response.json()
+        alert(`Failed to send test email: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      alert('Failed to send test email')
+    } finally {
+      setTestingEmail(false)
+    }
+  }
+
+  const handleDeleteEmailSettings = async () => {
+    if (!editingOrg) return
+    if (!confirm('Are you sure you want to delete email settings for this organization?')) return
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/admin/organizations/${editingOrg.id}/email-settings`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        alert('Email settings deleted successfully')
+        resetEmailForm()
+      } else {
+        const data = await response.json()
+        alert(`Error: ${data.error || 'Failed to delete email settings'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting email settings:', error)
+      alert('Failed to delete email settings')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const addToEmail = () => {
+    const email = toEmailInput.trim()
+    if (email && !emailForm.toEmails.includes(email)) {
+      setEmailForm({ ...emailForm, toEmails: [...emailForm.toEmails, email] })
+      setToEmailInput('')
+    }
+  }
+
+  const removeToEmail = (email: string) => {
+    setEmailForm({ ...emailForm, toEmails: emailForm.toEmails.filter(e => e !== email) })
   }
 
   if (status === 'loading') {
@@ -675,143 +845,414 @@ export default function AdminPage() {
       {/* Add/Edit Organization Modal */}
       {showOrgModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
+          <div className="relative top-10 mx-auto p-5 border w-[700px] max-h-[90vh] overflow-y-auto shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                {editingOrg ? 'Edit Organization' : 'Add New Organization'}
-              </h3>
-              <form onSubmit={editingOrg ? handleEditOrganization : handleCreateOrganization}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Organization Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={orgForm.name}
-                    onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-                    placeholder="Enter organization name"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={orgForm.description}
-                    onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-                    placeholder="Enter description (optional)"
-                    rows={3}
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Default From Number
-                  </label>
-                  <input
-                    type="text"
-                    value={orgForm.defaultFromNumber}
-                    onChange={(e) => setOrgForm({ ...orgForm, defaultFromNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-                    placeholder="Enter default from number"
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  {editingOrg ? 'Edit Organization' : 'Add New Organization'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowOrgModal(false)
+                    setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
+                    setEditingOrg(null)
+                    resetEmailForm()
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Custom Field Definitions
-                  </label>
-                  <div className="space-y-3">
-                    {orgForm.customFieldDefinitions.map((field, index) => (
-                      <div key={index} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md">
-                        <div className="flex-1 space-y-2">
-                          <input
-                            type="text"
-                            placeholder="Key (e.g. first_offer)"
-                            value={field.key}
-                            onChange={(e) => {
-                              const newFields = [...orgForm.customFieldDefinitions]
-                              newFields[index].key = e.target.value
+              {/* Tabs */}
+              <div className="border-b border-gray-200 mb-4">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    type="button"
+                    onClick={() => setEmailSettingsTab('basic')}
+                    className={`${
+                      emailSettingsTab === 'basic'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}
+                  >
+                    Basic Info
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmailSettingsTab('email')}
+                    className={`${
+                      emailSettingsTab === 'email'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+                  >
+                    Email Notifications
+                    {hasEmailSettings && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        Configured
+                      </span>
+                    )}
+                  </button>
+                </nav>
+              </div>
+
+              {/* Basic Info Tab */}
+              {emailSettingsTab === 'basic' && (
+                <form onSubmit={editingOrg ? handleEditOrganization : handleCreateOrganization}>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Organization Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={orgForm.name}
+                      onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                      placeholder="Enter organization name"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={orgForm.description}
+                      onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                      placeholder="Enter description (optional)"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default From Number
+                    </label>
+                    <input
+                      type="text"
+                      value={orgForm.defaultFromNumber}
+                      onChange={(e) => setOrgForm({ ...orgForm, defaultFromNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                      placeholder="Enter default from number"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Custom Field Definitions
+                    </label>
+                    <div className="space-y-3">
+                      {orgForm.customFieldDefinitions.map((field, index) => (
+                        <div key={index} className="flex gap-2 items-start p-3 bg-gray-50 rounded-md">
+                          <div className="flex-1 space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Key (e.g. first_offer)"
+                              value={field.key}
+                              onChange={(e) => {
+                                const newFields = [...orgForm.customFieldDefinitions]
+                                newFields[index].key = e.target.value
+                                setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Label (e.g. First Offer)"
+                              value={field.label}
+                              onChange={(e) => {
+                                const newFields = [...orgForm.customFieldDefinitions]
+                                newFields[index].label = e.target.value
+                                setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Description (optional)"
+                              value={field.description}
+                              onChange={(e) => {
+                                const newFields = [...orgForm.customFieldDefinitions]
+                                newFields[index].description = e.target.value
+                                setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
+                              }}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newFields = orgForm.customFieldDefinitions.filter((_, i) => i !== index)
                               setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
                             }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Label (e.g. First Offer)"
-                            value={field.label}
-                            onChange={(e) => {
-                              const newFields = [...orgForm.customFieldDefinitions]
-                              newFields[index].label = e.target.value
-                              setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Description (optional)"
-                            value={field.description}
-                            onChange={(e) => {
-                              const newFields = [...orgForm.customFieldDefinitions]
-                              newFields[index].description = e.target.value
-                              setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
-                          />
+                            className="text-red-600 hover:text-red-800 text-sm px-2 py-1"
+                          >
+                            Remove
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newFields = orgForm.customFieldDefinitions.filter((_, i) => i !== index)
-                            setOrgForm({ ...orgForm, customFieldDefinitions: newFields })
-                          }}
-                          className="text-red-600 hover:text-red-800 text-sm px-2 py-1"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrgForm({
+                            ...orgForm,
+                            customFieldDefinitions: [
+                              ...orgForm.customFieldDefinitions,
+                              { key: '', label: '', description: '' }
+                            ]
+                          })
+                        }}
+                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        + Add Custom Field
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-end mt-6">
                     <button
                       type="button"
                       onClick={() => {
-                        setOrgForm({
-                          ...orgForm,
-                          customFieldDefinitions: [
-                            ...orgForm.customFieldDefinitions,
-                            { key: '', label: '', description: '' }
-                          ]
-                        })
+                        setShowOrgModal(false)
+                        setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
+                        setEditingOrg(null)
+                        resetEmailForm()
                       }}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                     >
-                      + Add Custom Field
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? (editingOrg ? 'Updating...' : 'Creating...') : (editingOrg ? 'Update Organization' : 'Create Organization')}
                     </button>
                   </div>
-                </div>
+                </form>
+              )}
 
-                <div className="flex gap-3 justify-end mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowOrgModal(false)
-                      setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
-                      setEditingOrg(null)
-                    }}
-                    className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (editingOrg ? 'Updating...' : 'Creating...') : (editingOrg ? 'Update Organization' : 'Create Organization')}
-                  </button>
+              {/* Email Settings Tab */}
+              {emailSettingsTab === 'email' && (
+                <div>
+                  {!editingOrg ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Please create the organization first, then you can configure email settings.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center justify-between">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={emailForm.isEnabled}
+                            onChange={(e) => setEmailForm({ ...emailForm, isEnabled: e.target.checked })}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-2 text-sm font-medium text-gray-700">Enable Email Notifications</span>
+                        </label>
+                        {hasEmailSettings && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteEmailSettings}
+                            className="text-sm text-red-600 hover:text-red-800"
+                          >
+                            Delete Settings
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">SMTP Configuration</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SMTP Host *
+                            </label>
+                            <input
+                              type="text"
+                              value={emailForm.smtpHost}
+                              onChange={(e) => setEmailForm({ ...emailForm, smtpHost: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="smtp.gmail.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SMTP Port *
+                            </label>
+                            <input
+                              type="number"
+                              value={emailForm.smtpPort}
+                              onChange={(e) => setEmailForm({ ...emailForm, smtpPort: parseInt(e.target.value) || 587 })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="587"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SMTP Username *
+                            </label>
+                            <input
+                              type="text"
+                              value={emailForm.smtpUser}
+                              onChange={(e) => setEmailForm({ ...emailForm, smtpUser: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="your-email@gmail.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SMTP Password *
+                            </label>
+                            <input
+                              type="password"
+                              value={emailForm.smtpPassword}
+                              onChange={(e) => setEmailForm({ ...emailForm, smtpPassword: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder={hasEmailSettings ? '••••••••' : 'App password'}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={emailForm.smtpSecure}
+                                onChange={(e) => setEmailForm({ ...emailForm, smtpSecure: e.target.checked })}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">Use SSL/TLS (port 465)</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Email Settings</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              From Email *
+                            </label>
+                            <input
+                              type="email"
+                              value={emailForm.fromEmail}
+                              onChange={(e) => setEmailForm({ ...emailForm, fromEmail: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="notifications@company.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              From Name
+                            </label>
+                            <input
+                              type="text"
+                              value={emailForm.fromName}
+                              onChange={(e) => setEmailForm({ ...emailForm, fromName: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="Voice Bot Platform"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Recipient Emails *
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="email"
+                              value={toEmailInput}
+                              onChange={(e) => setToEmailInput(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addToEmail())}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                              placeholder="Enter email and press Enter or Add"
+                            />
+                            <button
+                              type="button"
+                              onClick={addToEmail}
+                              className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200"
+                            >
+                              Add
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {emailForm.toEmails.map((email) => (
+                              <span
+                                key={email}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800"
+                              >
+                                {email}
+                                <button
+                                  type="button"
+                                  onClick={() => removeToEmail(email)}
+                                  className="ml-2 text-indigo-600 hover:text-indigo-800"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Notification Trigger</h4>
+                        <select
+                          value={emailForm.notificationTrigger}
+                          onChange={(e) => setEmailForm({ ...emailForm, notificationTrigger: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                        >
+                          <option value="BOTH">Both Inbound & Outbound Calls</option>
+                          <option value="INBOUND_ONLY">Inbound Calls Only</option>
+                          <option value="OUTBOUND_ONLY">Outbound Calls Only</option>
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Choose when to send email notifications after calls are analyzed.
+                        </p>
+                      </div>
+
+                      <div className="flex gap-3 justify-between mt-6 pt-4 border-t">
+                        <button
+                          type="button"
+                          onClick={handleTestEmail}
+                          disabled={testingEmail || !hasEmailSettings}
+                          className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {testingEmail ? 'Sending...' : 'Send Test Email'}
+                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowOrgModal(false)
+                              setOrgForm({ name: '', description: '', defaultFromNumber: '', customFieldDefinitions: [] })
+                              setEditingOrg(null)
+                              resetEmailForm()
+                            }}
+                            className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveEmailSettings}
+                            disabled={submitting}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {submitting ? 'Saving...' : 'Save Email Settings'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </form>
+              )}
             </div>
           </div>
         </div>

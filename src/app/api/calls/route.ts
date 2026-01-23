@@ -9,8 +9,6 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    console.log('Session data:', JSON.stringify(session, null, 2))
-    console.log('Organization ID:', session?.user?.organizationId)
 
     if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -40,8 +38,6 @@ export async function GET(req: NextRequest) {
     const where: any = {
       organizationId: session.user.organizationId
     }
-
-    console.log(where)
 
     if (status) {
       where.status = status
@@ -100,7 +96,6 @@ export async function GET(req: NextRequest) {
       prisma.call.count({ where })
     ])
 
-    console.log(calls)
 
     return NextResponse.json({ 
       calls,

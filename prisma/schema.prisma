@@ -40,8 +40,48 @@ model Organization {
   contacts    Contact[]
   agents      Agent[] // Retell AI agents assigned to this org
   scheduledCalls ScheduledCall[]
+  emailSettings EmailSettings?
   
   @@map("organizations")
+}
+
+// Enum for email notification triggers
+enum EmailNotificationTrigger {
+  INBOUND_ONLY    // Send emails only for inbound calls
+  OUTBOUND_ONLY   // Send emails only for outbound calls
+  BOTH            // Send emails for both inbound and outbound calls
+}
+
+// Email/SMTP settings per organization
+model EmailSettings {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  
+  // SMTP Configuration
+  smtpHost        String   // e.g., smtp.gmail.com
+  smtpPort        Int      @default(587) // Common ports: 25, 465, 587
+  smtpSecure      Boolean  @default(false) // true for 465, false for other ports
+  smtpUser        String   // SMTP username/email
+  smtpPassword    String   // SMTP password (should be encrypted in production)
+  
+  // Email settings
+  fromEmail       String   // Sender email address
+  fromName        String?  // Sender display name
+  toEmails        String[] // Recipient email addresses
+  
+  // Notification triggers
+  notificationTrigger EmailNotificationTrigger @default(BOTH)
+  
+  // Feature flags
+  isEnabled       Boolean  @default(true) // Enable/disable email notifications
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@map("email_settings")
 }
 
 model User {

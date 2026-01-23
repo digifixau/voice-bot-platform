@@ -40,7 +40,6 @@ export async function GET(
       return NextResponse.json({ error: 'Call not found' }, { status: 404 })
     }
 
-    console.log('Fetched call:', call)
     return NextResponse.json({ call })
   } catch (error) {
     console.error('Error fetching call:', error)
