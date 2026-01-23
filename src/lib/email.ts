@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './prisma'
-import { console } from 'inspector/promises'
 
 interface CallEmailData {
   callId: string
