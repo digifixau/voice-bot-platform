@@ -55,6 +55,7 @@ export default function CallsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -74,6 +75,10 @@ export default function CallsPage() {
       
       if (filter !== 'all') {
         params.append('status', filter)
+      }
+
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim())
       }
 
       // Add date filtering
@@ -119,7 +124,7 @@ export default function CallsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filter, dateFilter, page])
+  }, [filter, dateFilter, searchTerm, page])
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -261,6 +266,24 @@ export default function CallsPage() {
             <div className="px-4 py-8 sm:px-0">
               {/* Filters */}
               <div className="mb-6 space-y-4">
+                {/* Search */}
+                <div>
+                  <label htmlFor="call-search" className="block text-sm font-medium text-gray-700 mb-2">
+                    Search Calls
+                  </label>
+                  <input
+                    id="call-search"
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value)
+                      setPage(1)
+                    }}
+                    placeholder="Search by phone number or call ID"
+                    className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
                 {/* Status Filters */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Call Status</label>
@@ -315,9 +338,14 @@ export default function CallsPage() {
               </div>
 
               {/* Active Filters Summary */}
-              {(filter !== 'all' || dateFilter !== 'all') && (
+              {(filter !== 'all' || dateFilter !== 'all' || searchTerm.trim()) && (
                 <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">Active filters:</span>
+                  {searchTerm.trim() && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      Search: {searchTerm.trim()}
+                    </span>
+                  )}
                   {filter !== 'all' && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                       Status: {filter}
@@ -332,6 +360,7 @@ export default function CallsPage() {
                     onClick={() => {
                       setFilter('all')
                       setDateFilter('all')
+                      setSearchTerm('')
                       setPage(1)
                     }}
                     className="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
@@ -365,7 +394,11 @@ export default function CallsPage() {
                     </svg>
                     <h3 className="mt-2 text-sm font-medium text-gray-900">No calls found</h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      {filter === 'all' ? 'Start by initiating a call from your contacts.' : `No ${filter.toLowerCase().replace('_', ' ')} calls.`}
+                      {searchTerm.trim()
+                        ? 'No calls match your search criteria.'
+                        : filter === 'all'
+                          ? 'Start by initiating a call from your contacts.'
+                          : `No ${filter.toLowerCase().replace('_', ' ')} calls.`}
                     </p>
                     <div className="mt-6">
                       <Link

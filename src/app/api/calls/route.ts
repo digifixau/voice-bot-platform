@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
-import { ca } from 'zod/locales'
+import type { Prisma } from '@prisma/client'
+import { CallStatus } from '@prisma/client'
 
 // GET /api/calls - List all calls for the user's organization
 export async function GET(req: NextRequest) {
@@ -29,22 +30,68 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const contactId = searchParams.get('contactId')
+    const search = searchParams.get('search')?.trim()
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = (page - 1) * limit
 
-    const where: any = {
+    const where: Prisma.CallWhereInput = {
       organizationId: session.user.organizationId
     }
 
     if (status) {
-      where.status = status
+      where.status = status as CallStatus
     }
 
     if (contactId) {
       where.contactId = contactId
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          id: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          retellCallId: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          clientPhoneNumber: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          fromNumber: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          toNumber: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          contact: {
+            is: {
+              phoneNumber: {
+                contains: search,
+                mode: 'insensitive'
+              }
+            }
+          }
+        }
+      ]
     }
 
     // Add date filtering
