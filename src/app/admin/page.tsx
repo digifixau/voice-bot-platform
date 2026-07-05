@@ -61,13 +61,49 @@ interface Agent {
   createdAt: string
 }
 
+interface Call {
+  id: string
+  status: string
+  direction?: string
+  duration?: number
+  fromNumber?: string
+  toNumber?: string
+  clientPhoneNumber?: string
+  createdAt: string
+  organization: {
+    id: string
+    name: string
+  }
+  contact?: {
+    id: string
+    name?: string
+    phoneNumber: string
+  }
+  agent?: {
+    id: string
+    name: string
+  }
+}
+
+interface CallsPagination {
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
-  const [activeTab, setActiveTab] = useState<'organizations' | 'users' | 'agents'>('organizations')
+  const [calls, setCalls] = useState<Call[]>([])
+  const [callsPagination, setCallsPagination] = useState<CallsPagination | null>(null)
+  const [callsPage, setCallsPage] = useState(1)
+  const [callsOrgFilter, setCallsOrgFilter] = useState('')
+  const [callsLoading, setCallsLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'organizations' | 'users' | 'agents' | 'calls'>('organizations')
   const [loading, setLoading] = useState(true)
   const [showOrgModal, setShowOrgModal] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
@@ -132,6 +168,12 @@ export default function AdminPage() {
     }
   }, [session, activeTab])
 
+  useEffect(() => {
+    if (session?.user.role === 'ADMIN' && activeTab === 'calls') {
+      fetchCalls()
+    }
+  }, [session, activeTab, callsOrgFilter, callsPage])
+
   const fetchData = async () => {
     setLoading(true)
     try {
@@ -155,6 +197,60 @@ export default function AdminPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchCalls = async () => {
+    setCallsLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: callsPage.toString(),
+        limit: '20'
+      })
+      if (callsOrgFilter) {
+        params.set('organizationId', callsOrgFilter)
+      }
+      const res = await fetch(`/api/admin/calls?${params.toString()}`)
+      const data = await res.json()
+      setCalls(data.calls || [])
+      setCallsPagination(data.pagination || null)
+    } catch (error) {
+      console.error('Error fetching calls:', error)
+    } finally {
+      setCallsLoading(false)
+    }
+  }
+
+  const handleDeleteCall = async (callId: string) => {
+    if (!confirm('Are you sure you want to delete this call? Its summary and recording will also be deleted. This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/calls/${callId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        if (calls.length === 1 && callsPage > 1) {
+          setCallsPage(callsPage - 1)
+        } else {
+          fetchCalls()
+        }
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || 'Failed to delete call'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting call:', error)
+      alert('Failed to delete call')
+    }
+  }
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '-'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
@@ -641,6 +737,16 @@ export default function AdminPage() {
                   >
                     Agents
                   </button>
+                  <button
+                    onClick={() => setActiveTab('calls')}
+                    className={`${
+                      activeTab === 'calls'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                  >
+                    Calls
+                  </button>
                 </nav>
               </div>
 
@@ -832,6 +938,147 @@ export default function AdminPage() {
                         </li>
                       )}
                     </ul>
+                  </div>
+                )}
+
+                {activeTab === 'calls' && (
+                  <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                        Calls
+                        {callsPagination && (
+                          <span className="ml-2 text-sm font-normal text-gray-500">
+                            ({callsPagination.total} total)
+                          </span>
+                        )}
+                      </h3>
+                      <select
+                        value={callsOrgFilter}
+                        onChange={(e) => {
+                          setCallsOrgFilter(e.target.value)
+                          setCallsPage(1)
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 text-sm"
+                      >
+                        <option value="">All Organizations</option>
+                        {organizations.map((org) => (
+                          <option key={org.id} value={org.id}>
+                            {org.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {callsLoading ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3"></div>
+                        <span className="text-gray-600">Loading calls...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Organization
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Contact / Phone
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Agent
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Status
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Duration
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Date
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {calls.map((call) => (
+                                <tr key={call.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm text-indigo-600 whitespace-nowrap">
+                                    {call.organization.name}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                    <div>{call.contact?.name || 'Unknown'}</div>
+                                    <div className="text-gray-500">
+                                      {call.contact?.phoneNumber || call.clientPhoneNumber || call.toNumber || '-'}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                    {call.agent?.name || '-'}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      call.status === 'COMPLETED'
+                                        ? 'bg-green-100 text-green-800'
+                                        : call.status === 'FAILED'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {call.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                    {formatDuration(call.duration)}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                    {new Date(call.createdAt).toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                                    <button
+                                      onClick={() => handleDeleteCall(call.id)}
+                                      className="text-red-600 hover:text-red-900"
+                                    >
+                                      Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {calls.length === 0 && (
+                                <tr>
+                                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                                    No calls found
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {callsPagination && callsPagination.pages > 1 && (
+                          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                            <span className="text-sm text-gray-500">
+                              Page {callsPagination.page} of {callsPagination.pages}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setCallsPage(callsPage - 1)}
+                                disabled={callsPage <= 1}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Previous
+                              </button>
+                              <button
+                                onClick={() => setCallsPage(callsPage + 1)}
+                                disabled={callsPage >= callsPagination.pages}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
